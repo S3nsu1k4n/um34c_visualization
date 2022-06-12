@@ -11,4 +11,4 @@ class ServerConfig(str, Enum):
 
 
 class UM34CConfig(str, Enum):
-    MACADDRESS = environ.get('MACADDRESS') or ''
+    BD_ADDRESS = environ.get('BD_ADDRESS') or 'xx:xx:xx:xx:xx:xx'
