@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Query
 from pydantic import BaseModel, Field, Required
 from typing import Union, List
 import socket
+from datetime import datetime
 from config import UM34CConfig
 
 
@@ -39,7 +40,6 @@ class BluetoothConnection:
         return self.port
 
     def get_info(self) -> dict:
-        # name, bd_address, port
         return {'name': self.device_name, 'bd_address': self.bd_address, 'port': self.port}
 
     def set_name(self, name: str) -> None:
@@ -106,6 +106,7 @@ BL_SOCK = BluetoothConnection()
 
 
 class BLDevice(BaseModel):
+    timestamp: datetime
     name: Union[str, None] = None
     bd_address: Union[str, None] = Field(default=None, title='bd_address', min_length=17, max_length=17)
     port: Union[int, None] = Field(default=None)
@@ -168,6 +169,7 @@ async def connect_by_address(bd_address: str = Query(default=UM34CConfig.BD_ADDR
 
     - **bd_addr**: The Bluetooth Device Address to connect to
     """
+    bd_address = bd_address.replace('_', ':')
     print('Connecting with', bd_address)
     # TODO connect with address
     BL_SOCK.reset()
