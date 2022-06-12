@@ -1,7 +1,7 @@
 import os
 import time
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, FileResponse
 
 from config import ServerConfig
 
@@ -34,6 +34,22 @@ async def add_process_time_header(request: Request, call_next):
     print(process_time)
     response.headers['X-Process-Time'] = str(process_time)
     return response
+
+
+@app.get("/favicon.ico", include_in_schema=False)
+async def favicon():
+    print(os.getcwd())
+    return FileResponse('app/static/images/um34c32x32.ico')
+
+
+@app.get("/apple-touch-icon.png", include_in_schema=False)
+async def apple_touch_icon():
+    return FileResponse('app/static/images/um34c180x180.png')
+
+
+@app.get("/apple-touch-icon-precomposed.png", include_in_schema=False)
+async def apple_touch_icon_composed():
+    return FileResponse('app/static/images/um34c180x180.png')
 
 
 if __name__ == '__main__':

@@ -443,6 +443,42 @@ async def set_screen(no: int = Query(default=Required, description='Number of sc
         return {**{'timestamp': datetime.now()}, **BL_SOCK.get_info(), **{'command': None, 'command_code': None}}
 
 
+@router.get('/reset_device', response_model=CommandResponse)
+async def reset_device():
+    """
+    Resetting the device
+    - set screen to the most left one
+    - delete data of all groups
+    - set backlight to level 5
+    - set screen timeout to 1 minute
+    """
+    data = BL_SOCK.send_and_receive(command=UM34CCommands.request_data.value)
+    response = data_preperation_raw(datastring=data)
+    cur_screen = int(response[126]['value'])
+    diff = 0 - cur_screen
+    if diff != 0:
+        command = UM34CCommands.next_screen if diff > 0 else UM34CCommands.previous_screen
+        for i in range(abs(diff)-1):
+            BL_SOCK.send(command=command.value)
+            time.sleep(0.3)
+        BL_SOCK.send(command=command.value)
+
+    for group_no in range(10):
+        code = add2hex(UM34CCommands.select_group.value, group_no)
+        BL_SOCK.send(command=code)
+        time.sleep(0.05)
+        BL_SOCK.send(command=UM34CCommands.clear_data_group.value)
+        time.sleep(0.3)
+    BL_SOCK.send(command=UM34CCommands.select_group.value)
+
+    code = add2hex(UM34CCommands.backlight_level.value, 5)
+    BL_SOCK.send(command=code)
+
+    code = add2hex(UM34CCommands.screen_timeout.value, 1)
+    BL_SOCK.send(command=code)
+
+    return {**{'timestamp': datetime.now()}, **BL_SOCK.get_info(), **{'command': None, 'command_code': None}}
+
 #TODO reset device
 
 #TODO request_data --> get specific data
