@@ -416,3 +416,35 @@ async def set_screen_timeout(minutes: int = Query(default=Required, description=
     code = add2hex(UM34CCommands.screen_timeout.value, minutes)
     BL_SOCK.send(command=code)
     return {**{'timestamp': datetime.now()}, **get_command_response(command=UM34CCommands.screen_timeout, code=code)}
+
+
+@router.get('/set_screen', response_model=CommandResponse)
+async def set_screen(no: int = Query(default=Required, description='Number of screen to go to', ge=0, le=5)):
+    """
+    Go to a specific screen (0 - 5)
+    - 0 = go to most left screen
+    - 3 = go to screen number 3
+    - 5 = go to most right screen
+
+    Uses the next/previous screen command multiple times to go to the selected screen
+    """
+    data = BL_SOCK.send_and_receive(command=UM34CCommands.request_data.value)
+    response = data_preperation_raw(datastring=data)
+    cur_screen = int(response[126]['value'])
+    diff = no - cur_screen
+    if diff != 0:
+        command = UM34CCommands.next_screen if diff > 0 else UM34CCommands.previous_screen
+        for i in range(abs(diff)-1):
+            BL_SOCK.send(command=command.value)
+            time.sleep(0.3)
+        BL_SOCK.send(command=command.value)
+        return {**{'timestamp': datetime.now()}, **get_command_response(command=command)}
+    else:
+        return {**{'timestamp': datetime.now()}, **BL_SOCK.get_info(), **{'command': None, 'command_code': None}}
+
+
+#TODO reset device
+
+#TODO request_data --> get specific data
+
+
