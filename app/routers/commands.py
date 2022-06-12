@@ -224,58 +224,66 @@ def get_model_keys(model) -> list:
     return list(model.schema()['properties'])
 
 
-@router.get('/request_data_raw', response_model=UM34CResponseRaw)
-async def request_data_raw():
+def filter_response_data(*, data: dict, q=List[str]) -> dict:
+    response_q = {}
+    for query in q:
+        if query in data.keys():
+            response_q[query] = data[query]
+
+    return response_q
+
+
+@router.get('/request_data_raw', response_model=UM34CResponseRaw, response_model_exclude_unset=True)
+async def request_data_raw(q: Union[List[str], None] = Query(default=None, description='Filter data')):
     """
-        Request a new 130 byte response of data from the device
+    Request a new 130 byte response of data from the device
 
-        The response data will NOT be prepared and NOT decoded
+    The response data will NOT be prepared and NOT decoded
 
-        Data contains:
-        - Model ID
-        - Voltage
-        - Amperage
-        - Wattage
-        - Temperature Celsius
-        - Temperature Fahrenheit
-        - Current selected data group
-        - Data of the data groups
-        - USB data line voltage (positive)
-        - USB data line voltage (negative)
-        - Charging mode
-        - mAh from threshold-based rcording
-        - mWh from threshold-based rcording
-        - Currently configured threshold for recording
-        - Duration of threshold recording
-        - Threshold recording active
-        - Current screen timeout
-        - Current backlight brightness
-        - Resistance
-        - Current screen
-        """
+    Data contains:
+    - Model ID
+    - Voltage
+    - Amperage
+    - Wattage
+    - Temperature Celsius
+    - Temperature Fahrenheit
+    - Current selected data group
+    - Data of the data groups
+    - USB data line voltage (positive)
+    - USB data line voltage (negative)
+    - Charging mode
+    - mAh from threshold-based rcording
+    - mWh from threshold-based rcording
+    - Currently configured threshold for recording
+    - Duration of threshold recording
+    - Threshold recording active
+    - Current screen timeout
+    - Current backlight brightness
+    - Resistance
+    - Current screen
+    """
     data = BL_SOCK.send_and_receive(command=UM34CCommands.request_data.value)
 
     response = data_preperation_raw(datastring=data)
     response[16]['value'] = list(map(''.join, zip(*[iter(response[16]['value'])] * 8)))
     response[16]['value'] = [{'mAh': x, 'mWh': y} for x, y in zip(response[16]['value'][0::2], response[16]['value'][1::2])]
 
-    #response = {**get_command_response(UM34CCommands.request_data), 'data': [{'offset': k, **v} for k, v in response.items()]}
-
-
-
     response_new = {}
     for key, (k, v) in zip(get_model_keys(UM34CResponseDataRaw), response.items()):
         response_new[key] = {'byte_offset': k, **v, 'byte_length': v['length']}
 
+    if q is not None:
+        response_new = filter_response_data(data=response_new, q=q)
+
     response = {**{'timestamp': datetime.now()},
                 **get_command_response(UM34CCommands.request_data),
                 'data': [response_new]}
-    print(response)
+
     return response
 
 
-@router.get('/request_data', response_model=UM34CResponse)
-async def request_data():
+@router.get('/request_data', response_model=UM34CResponse, response_model_exclude_unset=True)
+async def request_data(q: Union[List[str], None] = Query(default=None, description='Filter data by key')):
     """
     Request a new 130 byte response of data from the device
 
@@ -311,6 +319,9 @@ async def request_data():
     response_new = {}
     for key, (k, v) in zip(get_model_keys(UM34CResponseData), response.items()):
         response_new[key] = {'byte_offset': k, **v, 'byte_length': v['length']}
+
+    if q is not None:
+        response_new = filter_response_data(data=response_new, q=q)
 
     response = {**{'timestamp': datetime.now()},
                 **get_command_response(UM34CCommands.request_data),
@@ -478,9 +489,3 @@ async def reset_device():
     BL_SOCK.send(command=code)
 
     return {**{'timestamp': datetime.now()}, **BL_SOCK.get_info(), **{'command': None, 'command_code': None}}
-
-#TODO reset device
-
-#TODO request_data --> get specific data
-
-
