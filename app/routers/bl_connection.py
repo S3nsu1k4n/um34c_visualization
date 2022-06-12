@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException, status, Query
-from pydantic import BaseModel, Field, Required
+from pydantic import Required
 from typing import Union, List
 import socket
-from datetime import datetime
+
+from .commands_models import BLDevice
 from config import UM34CConfig
 
 
@@ -103,13 +104,6 @@ class BluetoothConnection:
 
 
 BL_SOCK = BluetoothConnection()
-
-
-class BLDevice(BaseModel):
-    timestamp: datetime
-    name: Union[str, None] = None
-    bd_address: Union[str, None] = Field(default=None, title='bd_address', min_length=17, max_length=17)
-    port: Union[int, None] = Field(default=None)
 
 
 def search_nearby_devices():
