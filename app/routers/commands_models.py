@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field
 from enum import Enum
 from typing import Union, List
 from datetime import datetime
+from config import UM34CConfig
 
 
 RESPONSE_FORMAT = [{'length': 2, 'type': 'model', 'description': 'Model ID'},
@@ -87,35 +88,38 @@ class UM34CResponseGroupData(BaseModel):
 
 
 class UM34CResponseDatapointStr(UM34CResponseBase):
-    value_type = 'string'
+    value_type: str = Field(default='string')
     value: Union[str, None] = Field(default=None, example='UM34C')
 
 
 class UM34CResponseDatapointInt(UM34CResponseBase):
-    value_type = 'integer'
+    value_type: str = Field(default='integer')
     value: Union[int, None] = Field(default=None, example=33)
     value_unit = '1'
 
 
 class UM34CResponseDatapointFloat(UM34CResponseBase):
-    value_type = 'float'
+    value_type: str = Field(default='float')
     value: Union[float, None] = Field(default=None, example=220.8)
     value_unit = '1'
 
 
 class UM34CResponseDatapointBool(UM34CResponseBase):
-    value_type = 'bool'
+    value_type: str = Field(default='bool')
     value: Union[bool, None] = Field(default=None, example=False)
+    value_unit = 'true/false'
 
 
 class UM34CResponseDatapointList(UM34CResponseBase):
-    value_type = 'array'
+    value_type: str = Field(default='array')
     value: Union[List[UM34CResponseGroupData], None] = Field(default=None, example=[{"mAh": 23,"mWh": 116},{"mAh": 0,"mWh": 0}])
+    value_unit = 'mah/mwh'
 
 
 class UM34CResponseDatapointListRaw(UM34CResponseBase):
-    value_type = 'array'
+    value_type: str = Field(default='array')
     value: Union[List[UM34CResponseGroupDataRaw], None] = None
+    value_unit = 'mah/mwh'
 
 
 class UM34CResponseData(BaseModel):
@@ -126,7 +130,7 @@ class UM34CResponseData(BaseModel):
     temperature_c: Union[UM34CResponseDatapointInt, None] = Field(default=None, example={"type":"measurement","description":"Current measured temperature Celsius","byte_offset":10,"byte_length":2,"value_unit":"C","value":33})
     temperature_f: Union[UM34CResponseDatapointInt, None] = Field(default=None, example={"type":"measurement","description":"Current measured temperature Fahrenheit","byte_offset":12,"byte_length":2,"value_unit":"F","value":92})
     selected_group: Union[UM34CResponseDatapointInt, None] = Field(default=None, example={"type":"configuration","description":"Current selected datagroup, zero-indexed","byte_offset":14,"byte_length":2,"value":0})
-    group_data: Union[UM34CResponseDatapointList, None] = Field(default=None, example=[{"mAh":28,"mWh":145},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0}])
+    group_data: Union[UM34CResponseDatapointList, None] = Field(default=None, example={"type":"measurement","description":"Array of 10 data groups. For each data group: 4 bytes mAh, 4 bytes mWh","byte_offset":16,"byte_length":80,"value_unit": "mAh/mWh","value": [{"mAh":28,"mWh":145},{"mAh":0,"mWh":0}, {"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0}]})
     usb_volt_pos: Union[UM34CResponseDatapointFloat, None] = Field(default=None, example={"type":"measurement","description":"USB dataline voltage (positive)","byte_offset":96,"byte_length":2,"value_unit":"V","value":2.89})
     usb_volt_neg: Union[UM34CResponseDatapointFloat, None] = Field(default=None, example={"type":"measurement","description":"USB dataline voltage (negative)","byte_offset":98,"byte_length":2,"value_unit":"V","value":0.03})
     charging_mode: Union[UM34CResponseDatapointStr, None] = Field(default=None, example={"type":"measurement","description":"Charging mode: Unknown, or normal (non-custommode)","byte_offset":100,"byte_length":2,"value":"UNKNOWN"})
@@ -230,7 +234,7 @@ class UM34CResponseRaw(CommandResponse):
                     "value": "0000"
                   },
                   "group_data": {
-                    "type": "measurement",
+                    "type": "configuration",
                     "description": "Array of 10 data groups. For each data group: 4 bytes mAh, 4 bytes mWh",
                     "byte_offset": 16,
                     "byte_length": 80,
@@ -364,7 +368,7 @@ class UM34CResponseRaw(CommandResponse):
                 }
               ]
             }
-                    }
+        }
 
 
 class UM34CResponseKeys(BaseModel):
@@ -388,3 +392,38 @@ class UM34CResponseKeys(BaseModel):
     screen_backlight = 'screen_backlight'
     resistance = 'resistance'
     cur_screen = 'cur_screen'
+
+
+class UM34Examples(Enum):
+    request_data_key: dict = {'default': {'description': 'default example value', 'value': None},
+                              'Model ID': {'description': 'Get name of device', 'value': 'model_id'},
+                              'Voltage': {'description': 'Get current measured voltage', 'value': 'voltage'},
+                              'Amperage': {'description': 'Get current measured amperage', 'value': 'amperage'},
+                              'Wattage': {'description': 'Get current measured wattage', 'value': 'wattage'},
+                              'Temperature in Celsius': {'description': 'Get current measured temperature in celsius', 'value': 'temperature_c'},
+                              'Temperature in Fahrenheit': {'description': 'Get current measured temperature in fahrenheit', 'value': 'temperature_f'},
+                              'Selected group': {'description': 'Get selected group', 'value': 'selected_group'},
+                              'Group data': {'description': 'Get data from groups', 'value': 'group_data'},
+                              'USB voltage +': {'description': 'Get current measured USB data line voltage (positive)', 'value': 'usb_volt_pos'},
+                              'USB voltage -': {'description': 'Get current measured USB data line voltage (negative)', 'value': 'usb_volt_neg'},
+                              'Charging mode': {'description': 'Get charging mode', 'value': 'charging_mode'},
+                              'Threshold mAh': {'description': 'Get mAh from threshold-based recording', 'value': 'thresh_mah'},
+                              'Threshold mWh': {'description': 'Get mWh from threshold-based recording', 'value': 'thresh_mwh'},
+                              'Thresh amperage': {'description': 'Get configured amperage for threshold recording', 'value': 'thresh_amps'},
+                              'Thresh seconds': {'description': 'Get duration of threshold recording, in cumulative seconds', 'value': 'thresh_seconds'},
+                              'Thresh active': {'description': 'Get threshold recording active', 'value': 'thresh_active'},
+                              'Screen timeout': {'description': 'Get current screen timeout setting, in minutes (0-9)', 'value': 'screen_timeout'},
+                              'Screen backlight': {'description': 'Get Current backlight setting (0-5)', 'value': 'screen_backlight'},
+                              'Resistance': {'description': 'Get current measured resistance', 'value': 'resistance'},
+                              'Current Screen': {'description': 'Get current screen', 'value': 'cur_screen'},
+                              }
+    request_data_q: dict = {'default': {'description': 'default example value', 'value': None},
+                            'Model ID': {'description': 'Get name of device', 'value': ['model_id']},
+                            'Group data': {'description': 'Get only group data','value': ['selected_group', 'group_data']},
+                            'Threshold data': {'description': 'Get only threshold data','value': ['thresh_mah', 'thresh_mwh', 'thresh_amps', 'thresh_seconds', 'thresh_active']},
+                            'Measurement data': {'description': 'Get only measurement data', 'value': ['voltage', 'amperage', 'wattage', 'temperature_c', 'temperature_f', 'group_data', 'charging_mode', 'usb_volt_pos', 'usb_volt_neg', 'thresh_mah','thresh_mwh', 'thresh_seconds', 'resistance']},
+                            'Configuration data': {'description': 'Get only configuration data','value': ['selected_group', 'thresh_amps', 'thresh_active', 'screen_timeout', 'screen_backlight', 'cur_screen']},
+                            }
+    bd_address: dict = {'default': {'description': 'default example value', 'value': None}, 'From configuration': {'description': 'Use bd address from configuration', 'value': UM34CConfig.BD_ADDRESS},}
+    max_attempts: dict = {'default': {'description': 'default example value', 'value': 10}, 'From configuration': {'description': 'Use max attempts from configuration', 'value': UM34CConfig.MAX_ATTEMPTS}, }
+    attempt_delay: dict = {'default': {'description': 'default example value', 'value': 5000}, 'From configuration': {'description': 'Use attempt delay from configuration', 'value': UM34CConfig.ATTEMPT_DELAY}, }

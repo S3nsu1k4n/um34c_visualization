@@ -1,5 +1,5 @@
-from fastapi import APIRouter, HTTPException, status, Query, Path
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi import APIRouter, Query, Path
+from fastapi.responses import FileResponse
 from pydantic import Field, Required
 from typing import Union, List
 from enum import Enum
@@ -14,8 +14,7 @@ from .commands_models import (UM34CResponseRaw,
                               CHARGING_MODES,
                               UM34CCommands,
                               UM34CResponseDataRaw,
-                              UM34CResponseData,
-                              UM34CResponseKeys,
+                              UM34Examples
                               )
 
 from .bl_connection import BL_SOCK
@@ -56,7 +55,7 @@ def data_preperation_decoded(data: dict) -> dict:
     data[100].update(CHARGING_MODES[data[100]['value']])
     data[116]['value'] = True if [data[116]['value']] == 1 else False
 
-    units = {2: 'V', 4: 'A', 6: 'W', 10: 'C', 12: 'F', 16: 'mAh/mWh', 96: 'V', 98: 'V', 102: 'mAh', 106: 'mWh', 110: 'A', 112: 's', 118: 'min', 122: 'Ω'}
+    units = {0: 'None', 2: 'V', 4: 'A', 6: 'W', 10: 'C', 12: 'F', 14: '1', 16: 'mAh/mWh', 96: 'V', 98: 'V', 100: 'None', 102: 'mAh', 106: 'mWh', 110: 'A', 112: 's', 116: 'None', 118: 'min', 120: '1', 122: 'Ω', 126: '1'}
     for offset, unit in units.items():
         data[offset].update({'value_unit': unit})
     return data
@@ -97,7 +96,7 @@ def get_response_data(q: List[str], raw=False) -> dict:
 
     response_new = {}
     for key, (k, v) in zip(get_model_keys(UM34CResponseDataRaw), response.items()):
-        response_new[key] = {'byte_offset': k, **v, 'byte_length': v['length']}
+        response_new[key] = {'byte_offset': k, **v, 'byte_length': v['length'], 'value_type': type(v['value']).__name__}
 
     if q is not None:
         response_new = filter_response_data(data=response_new, q=q)
@@ -110,12 +109,14 @@ async def command_index():
     return FileResponse('./app/static/templates/commands_index.html')
 
 
-@router.get('/request_data_raw', response_model=UM34CResponseRaw, response_model_exclude_unset=True)
-async def request_data_raw(q: Union[List[str], None] = Query(default=None, description='Filter data', min_length=7, max_length=16)):
+@router.get('/request_data_raw', response_model=UM34CResponseRaw, response_model_exclude_unset=True,
+            summary='Receive raw data from device',
+            response_description='Successfully sent command to device')
+async def request_data_raw(q: Union[List[str], None] = Query(default=None, description='Filter data by keys', examples=UM34Examples.request_data_q)):
     """
-    Request a new 130 byte response of data from the device
+    Request a new 130 byte response of data from the device (NOT decoded)
 
-    The response data will NOT be prepared and NOT decoded
+    **q** : filter data by given keys
 
     Data contains:
     - Model ID
@@ -142,12 +143,13 @@ async def request_data_raw(q: Union[List[str], None] = Query(default=None, descr
     return get_response_data(q=q, raw=True)
 
 
-@router.get('/request_data_raw/{key}', response_model=UM34CResponseRaw, response_model_exclude_unset=True)
-async def request_data_raw(key: str = Path(default=None, description='Filter data by key', min_length=7, max_length=16)):
+@router.get('/request_data_raw/{key}', response_model=UM34CResponseRaw, response_model_exclude_unset=True,
+            summary='Receive specific raw data from device',
+            response_description='Successfully sent command to device'
+            )
+async def request_data_raw(key: str = Path(default=None, description='Filter data by key', min_length=7, max_length=16, examples=UM34Examples.request_data_key)):
     """
-    Request a new 130 byte response of data from the device
-
-    The response data will NOT be prepared and NOT decoded
+    Request a new 130 byte response of data from the device filtered by given key (NOT decoded)
 
     Data contains:
     - Model ID
@@ -174,12 +176,15 @@ async def request_data_raw(key: str = Path(default=None, description='Filter dat
     return get_response_data(q=[key], raw=True)
 
 
-@router.get('/request_data', response_model=UM34CResponse, response_model_exclude_unset=True)
-async def request_data(q: Union[List[str], None] = Query(default=None, description='Filter data by key', min_length=7, max_length=16)):
+@router.get('/request_data', response_model=UM34CResponse, response_model_exclude_unset=True,
+            summary='Receive data from device',
+            response_description='Successfully sent command to device'
+            )
+async def request_data(q: Union[List[str], None] = Query(default=None, description='Filter data by key', examples=UM34Examples.request_data_q)):
     """
-    Request a new 130 byte response of data from the device
+    Request a new 130 byte response of data from the device (decoded)
 
-    The response data will be prepared and decoded
+    **q** : filter data by given keys
 
     Data contains:
     - Model ID
@@ -206,12 +211,13 @@ async def request_data(q: Union[List[str], None] = Query(default=None, descripti
     return get_response_data(q=q)
 
 
-@router.get('/request_data/{key}', response_model=UM34CResponse, response_model_exclude_unset=True)
-async def request_data_by_key(key: str = Path(description='Filter data by key', min_length=7, max_length=16)):
+@router.get('/request_data/{key}', response_model=UM34CResponse, response_model_exclude_unset=True,
+            summary='Receive specific data from device',
+            response_description='Successfully sent command to device'
+            )
+async def request_data_by_key(key: str = Path(description='Filter data by key', min_length=7, max_length=16, examples=UM34Examples.request_data_key)):
     """
-    Request a new 130 byte response of data from the device
-
-    The response data will be prepared and decoded
+    Request a new 130 byte response of data from the device filtered by given key (decoded)
 
     Data contains:
     - Model ID

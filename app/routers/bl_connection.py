@@ -4,8 +4,7 @@ from datetime import datetime
 from typing import Union
 import socket
 
-from .commands_models import BLDevice
-from config import UM34CConfig
+from .commands_models import BLDevice, UM34Examples
 
 
 router = APIRouter(
@@ -53,14 +52,14 @@ class BluetoothConnection:
         self.port = None
         self.attempts = 0
 
-    def connect(self, bd_address: str, port: int) -> dict:
+    def connect(self, bd_address: str, port: int, max_attempts: int, timeout: int) -> dict:
         self.bd_address = bd_address
         self.port = port
         self.sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
-        #self.sock.settimeout(int(UM34CConfig.ATTEMPT_DELAY.value)/1000)
+        self.sock.settimeout(timeout/1000)
         self.attempts = 0
 
-        if self.attempts <= int(UM34CConfig.MAX_ATTEMPTS.value) or self.bd_address is not self.port:
+        if self.attempts <= max_attempts or self.bd_address is not self.port:
             try:
                 self.sock.connect((self.bd_address, self.port))
             except TimeoutError:
@@ -125,11 +124,13 @@ async def bl_index():
 
 @router.get('/connect_by_bd_address/{bd_address}', response_model=BLDevice,
             status_code=status.HTTP_201_CREATED,
-            summary='Connect with bluetooth by bd_address',
-            response_description='Successfully connected via bluetooth'
+            summary='Connect to device',
+            response_description='Successfully connected to device'
             )
-async def connect_by_address(bd_address: str = Path(default=UM34CConfig.BD_ADDRESS.value, description='Bluetooth Device Address to connect to', max_length=17, min_length=17),
-                             port: int = Query(default=1, description='Port number of bluetooth connection', ge=1, le=30)):
+async def connect_by_address(bd_address: str = Path(description='Bluetooth Device Address to connect to', max_length=17, min_length=17, examples=UM34Examples.bd_address),
+                             port: int = Query(default=1, description='Port number of bluetooth connection', ge=1, le=30),
+                             max_attempts: int = Query(default=10, description='Max attempts before giving up connecting', ge=1, examples=UM34Examples.max_attempts),
+                             timeout: int = Query(default=5000, description='Timeout in milliseconds', ge=1, examples=UM34Examples.attempt_delay),):
     """
     Connect to the device with the specified bd_address:
 
@@ -139,7 +140,7 @@ async def connect_by_address(bd_address: str = Path(default=UM34CConfig.BD_ADDRE
     bd_address = bd_address.replace('_', ':')
     print('Connecting with', bd_address)
     BL_SOCK.reset()
-    response = BL_SOCK.connect(bd_address=bd_address, port=port)
+    response = BL_SOCK.connect(bd_address=bd_address, port=port, max_attempts=max_attempts, timeout=timeout)
 
     return response
 
