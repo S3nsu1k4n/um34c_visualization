@@ -132,10 +132,11 @@ async def connect_by_address(bd_address: str = Path(description='Bluetooth Devic
                              max_attempts: int = Query(default=10, description='Max attempts before giving up connecting', ge=1, examples=UM34Examples.max_attempts),
                              timeout: int = Query(default=5000, description='Timeout in milliseconds', ge=1, examples=UM34Examples.attempt_delay),):
     """
-    Connect to the device with the specified bd_address:
-
+    Connect to the device with the specified bd_address (- possible to use **_** instead of **:**):
     - **bd_addr**: The Bluetooth Device Address to connect to
-    - possible to use **_** instead of **:**
+    - **port**: Port number of bluetooth connection
+    - **max_attempts**: Max attempts before giving up connecting
+    - **timeout**: Timeout in milliseconds
     """
     bd_address = bd_address.replace('_', ':')
     print('Connecting with', bd_address)
@@ -145,6 +146,9 @@ async def connect_by_address(bd_address: str = Path(description='Bluetooth Devic
     return response
 
 
-@router.get('/disconnect')
+@router.get('/disconnect', summary='Disconnect from device', response_description='Successfully disconnected from device')
 async def disconnect() -> None:
+    """
+    Disconnect from the device again
+    """
     BL_SOCK.disconnect()

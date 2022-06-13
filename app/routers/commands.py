@@ -119,8 +119,8 @@ async def request_data_raw(key: Union[List[str], None] = Query(default=None, des
                            values_only: bool = Query(default=False, description='If data should only contain values')):
     """
     Request a new 130 byte response of data from the device (NOT decoded)
-
-    **q** : filter data by given keys
+    - **key** : filter data by given keys
+    - **values_only** : If data should only contain values
 
     Data contains:
     - Model ID
@@ -155,6 +155,8 @@ async def request_data_raw(key: str = Path(default=None, description='Filter dat
                            values_only: bool = Query(default=False, description='If data should only contain values')):
     """
     Request a new 130 byte response of data from the device filtered by given key (NOT decoded)
+    - **key** : filter data by given keys
+    - **values_only** : If data should only contain values
 
     Data contains:
     - Model ID
@@ -189,8 +191,8 @@ async def request_data(key: Union[List[str], None] = Query(default=None, descrip
                        values_only: bool = Query(default=False, description='If data should only contain values')):
     """
     Request a new 130 byte response of data from the device (decoded)
-
-    **q** : filter data by given keys
+    - **key** : filter data by given keys
+    - **values_only** : If data should only contain values
 
     Data contains:
     - Model ID
@@ -225,6 +227,8 @@ async def request_data_by_key(key: str = Path(description='Filter data by key', 
                               values_only: bool = Query(default=False, description='If data should only contain values')):
     """
     Request a new 130 byte response of data from the device filtered by given key (decoded)
+    - **key** : filter data by given keys
+    - **values_only** : If data should only contain values
 
     Data contains:
     - Model ID
@@ -251,7 +255,7 @@ async def request_data_by_key(key: str = Path(description='Filter data by key', 
     return get_response_data(q=[key], values_only=values_only)
 
 
-@router.get('/next_screen', response_model=CommandResponse)
+@router.get('/next_screen', response_model=CommandResponse, summary='Go to next screen on device', response_description='Successfully sent command to device')
 async def next_screen():
     """
     Go to next screen
@@ -260,10 +264,11 @@ async def next_screen():
     return get_command_response(command=UM34CCommands.next_screen)
 
 
-@router.get('/rotate_screen', response_model=CommandResponse)
+@router.get('/rotate_screen', response_model=CommandResponse, summary='Rotate screen on device', response_description='Successfully sent command to device')
 async def rotate_screen(no_of_time: int = Query(default=1, description='How often it should rotate', ge=1, le=3)):
     """
-    Rotate screen
+    Rotates the screen
+    - **no_if_time** : How often it should rotate
     """
     for i in range(no_of_time):
         BL_SOCK.send(command=UM34CCommands.rotate_screen.value)
@@ -272,7 +277,7 @@ async def rotate_screen(no_of_time: int = Query(default=1, description='How ofte
     return get_command_response(command=UM34CCommands.rotate_screen)
 
 
-@router.get('/previous_screen', response_model=CommandResponse)
+@router.get('/previous_screen', response_model=CommandResponse, summary='Go to previous screen on device', response_description='Successfully sent command to device')
 async def previous_screen():
     """
     Go to previous screen
@@ -281,10 +286,11 @@ async def previous_screen():
     return get_command_response(command=UM34CCommands.previous_screen)
 
 
-@router.get('/clear_data_group', response_model=CommandResponse)
-async def clear_data_group(group_no: Union[int, None] = Query(default=None, description='Number of group to delete data (optional)', ge=0, le=9)):
+@router.get('/clear_data_group', response_model=CommandResponse, summary='Clear data of a group', response_description='Successfully sent command to device')
+async def clear_data_group(group_no: Union[int, None] = Query(default=None, description='Number of group to delete data (optional)', ge=0, le=9, examples=UM34Examples.clear_data_group)):
     """
     Delete data of current selected group
+    - **group_no** : Number of group to delete data (optional)
 
     If group number is given, the device will first switch to the group and then delete its data
     - without group number 🠖 current selected group data will be deleted
@@ -300,10 +306,13 @@ async def clear_data_group(group_no: Union[int, None] = Query(default=None, desc
     return get_command_response(command=UM34CCommands.clear_data_group, code=code)
 
 
-@router.get('/select_data_group/{group_no}', response_model=CommandResponse)
-async def select_data_group(group_no: int = Path(default=Required, description='Group number to switch to', ge=0, le=9)):
+@router.get('/select_data_group/{group_no}', response_model=CommandResponse, summary='Select a data group', response_description='Successfully sent command to device')
+async def select_data_group(group_no: int = Path(default=Required, description='Group number to switch to', ge=0, le=9, examples=UM34Examples.select_data_group)):
     """
     Set the selected data group between 0 and 9
+    - **group_no** : Number of group to delete data (optional)
+
+
     - 0 = set selected group to 0
     - 7 = set selected group to 7
     """
@@ -312,10 +321,12 @@ async def select_data_group(group_no: int = Path(default=Required, description='
     return get_command_response(command=UM34CCommands.select_group, code=code)
 
 
-@router.get('/set_recording_threshold/{centi_amps}', response_model=CommandResponse)
-async def set_recording_threshold(centi_amps: int = Path(default=Required, description='Threshold in centiamps', ge=0, le=30)):
+@router.get('/set_recording_threshold/{centi_amps}', response_model=CommandResponse, summary='Set the threshold amps', response_description='Successfully sent command to device')
+async def set_recording_threshold(centi_amps: int = Path(default=Required, description='Threshold in centiamps', ge=0, le=30, examples=UM34Examples.set_recording_threshold)):
     """
     Set recording threshold to a value between 0.00 and 0.30 A
+    - **centi_amps** : Threshold in centiamps
+
     - 0 = 0.00 A
     - 5 = 0.05 A
     - 15 = 0.15 A
@@ -326,10 +337,12 @@ async def set_recording_threshold(centi_amps: int = Path(default=Required, descr
     return get_command_response(command=UM34CCommands.recording_threshold, code=code)
 
 
-@router.get('/set_backlight_level/{level}', response_model=CommandResponse)
-async def set_backlight_level(level: int = Path(default=Required, description='Device backlight level', ge=0, le=5)):
+@router.get('/set_backlight_level/{level}', response_model=CommandResponse, summary='Set backlight level of device', response_description='Successfully sent command to device')
+async def set_backlight_level(level: int = Path(default=Required, description='Device backlight level', ge=0, le=5, examples=UM34Examples.set_backlight)):
     """
     Set device backlight level between 0 and 5 (inclusive)
+    - **level** : Device backlight level
+
     - 0 = dim
     - 5 = full brightness
     """
@@ -338,10 +351,12 @@ async def set_backlight_level(level: int = Path(default=Required, description='D
     return get_command_response(command=UM34CCommands.backlight_level, code=code)
 
 
-@router.get('/set_screen_timeout/{minutes}', response_model=CommandResponse)
-async def set_screen_timeout(minutes: int = Path(default=Required, description='Screen timeout in minutes', ge=0, le=9)):
+@router.get('/set_screen_timeout/{minutes}', response_model=CommandResponse, summary='Set screen timeout of device', response_description='Successfully sent command to device')
+async def set_screen_timeout(minutes: int = Path(default=Required, description='Screen timeout in minutes', ge=0, le=9, examples=UM34Examples.set_screen_timeout)):
     """
     Set screen timeout between 0 and 9 minutes (inclusive)
+    - **minutes** : Screen timeout in minutes
+
     - 0 = no screensaver
     - 1 = screensaver after 1 minute
     - 9 = screensaver after 9 minutes
@@ -351,10 +366,12 @@ async def set_screen_timeout(minutes: int = Path(default=Required, description='
     return get_command_response(command=UM34CCommands.screen_timeout, code=code)
 
 
-@router.get('/set_screen/{no}', response_model=CommandResponse)
-async def set_screen(no: int = Path(default=Required, description='Number of screen to go to', ge=0, le=5)):
+@router.get('/set_screen/{no}', response_model=CommandResponse, summary='Go to a specific screen on device', response_description='Successfully sent command to device')
+async def set_screen(no: int = Path(default=Required, description='Number of screen to go to', ge=0, le=5, examples=UM34Examples.set_screen)):
     """
     Go to a specific screen (0 - 5)
+    - **no** : Number of screen to go to
+
     - 0 = go to most left screen
     - 3 = go to screen number 3
     - 5 = go to most right screen
@@ -376,7 +393,7 @@ async def set_screen(no: int = Path(default=Required, description='Number of scr
         return {**{'timestamp': datetime.now()}, **BL_SOCK.get_info(), **{'command': None, 'command_code': None}}
 
 
-@router.get('/reset_device', response_model=CommandResponse)
+@router.get('/reset_device', response_model=CommandResponse, summary='Reset the device', response_description='Successfully sent command to device')
 async def reset_device():
     """
     Resetting the device
