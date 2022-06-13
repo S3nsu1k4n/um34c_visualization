@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, Path
+from fastapi import APIRouter, Query, Path, Depends, Response
 from fastapi.responses import FileResponse
 from pydantic import Field, Required
 from typing import Union, List
@@ -6,6 +6,7 @@ from enum import Enum
 import time
 from datetime import datetime
 
+from .commands_dependencies import verify_connected, verify_key_allowed, verify_keys_allowed
 from .commands_models import (UM34CResponseRaw,
                               UM34CResponse,
                               CommandResponse,
@@ -19,10 +20,11 @@ from .commands_models import (UM34CResponseRaw,
 
 from .bl_connection import BL_SOCK
 
+
 router = APIRouter(
     prefix='/command',
     tags=['command'],
-    dependencies=[],
+    dependencies=[Depends(verify_connected)],
     responses={}
 )
 
@@ -115,7 +117,7 @@ async def command_index():
 @router.get('/request_data_raw', response_model=UM34CResponseRaw, response_model_exclude_unset=True,
             summary='Receive raw data from device',
             response_description='Successfully sent command to device')
-async def request_data_raw(key: Union[List[str], None] = Query(default=None, description='Filter data by keys', examples=UM34Examples.request_data_q),
+async def request_data_raw(keys: Union[List[str], None] = Depends(verify_keys_allowed),
                            values_only: bool = Query(default=False, description='If data should only contain values')):
     """
     Request a new 130 byte response of data from the device (NOT decoded)
@@ -144,14 +146,14 @@ async def request_data_raw(key: Union[List[str], None] = Query(default=None, des
     - Resistance
     - Current screen
     """
-    return get_response_data(q=key, raw=True, values_only=values_only)
+    return get_response_data(q=keys, raw=True, values_only=values_only)
 
 
 @router.get('/request_data_raw/{key}', response_model=UM34CResponseRaw, response_model_exclude_unset=True,
             summary='Receive specific raw data from device',
             response_description='Successfully sent command to device'
             )
-async def request_data_raw(key: str = Path(default=None, description='Filter data by key', min_length=7, max_length=16, examples=UM34Examples.request_data_key),
+async def request_data_raw(key: str = Depends(verify_key_allowed),
                            values_only: bool = Query(default=False, description='If data should only contain values')):
     """
     Request a new 130 byte response of data from the device filtered by given key (NOT decoded)
@@ -187,7 +189,7 @@ async def request_data_raw(key: str = Path(default=None, description='Filter dat
             summary='Receive data from device',
             response_description='Successfully sent command to device'
             )
-async def request_data(key: Union[List[str], None] = Query(default=None, description='Filter data by key', examples=UM34Examples.request_data_q),
+async def request_data(keys: Union[List[str], None] = Query(default=None, description='Filter data by key', examples=UM34Examples.request_data_q),
                        values_only: bool = Query(default=False, description='If data should only contain values')):
     """
     Request a new 130 byte response of data from the device (decoded)
@@ -216,14 +218,14 @@ async def request_data(key: Union[List[str], None] = Query(default=None, descrip
     - Resistance
     - Current screen
     """
-    return get_response_data(q=key, values_only=values_only)
+    return get_response_data(q=keys, values_only=values_only)
 
 
 @router.get('/request_data/{key}', response_model=UM34CResponse, response_model_exclude_unset=True,
             summary='Receive specific data from device',
             response_description='Successfully sent command to device'
             )
-async def request_data_by_key(key: str = Path(description='Filter data by key', min_length=7, max_length=16, examples=UM34Examples.request_data_key),
+async def request_data_by_key(key: str = Depends(verify_key_allowed),
                               values_only: bool = Query(default=False, description='If data should only contain values')):
     """
     Request a new 130 byte response of data from the device filtered by given key (decoded)

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Query, Path
+from fastapi import APIRouter, HTTPException, status, Query, Path, Depends
 from fastapi.responses import FileResponse
 from datetime import datetime
 from typing import Union
@@ -22,6 +22,9 @@ class BluetoothConnection:
         self.bd_address: Union[str, None] = None
         self.port: Union[int, None] = None
         self.attempts = 0
+        self.connected = False
+        self.connected_since = None
+        self.disconnected_since = datetime.now()
 
     def __enter__(self):
         self.sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
@@ -46,11 +49,20 @@ class BluetoothConnection:
     def set_name(self, name: str) -> None:
         self.device_name = name
 
+    def is_connected(self) -> bool:
+        return self.connected
+
+    def get_connected_timestamps(self) -> list:
+        return [self.connected_since, self.disconnected_since]
+
     def reset(self) -> None:
+        self.connected_since = None
+        self.disconnected_since = datetime.now()
         self.sock = None
         self.bd_address = None
         self.port = None
         self.attempts = 0
+        self.connected = False
 
     def connect(self, bd_address: str, port: int, max_attempts: int, timeout: int) -> dict:
         self.bd_address = bd_address
@@ -81,6 +93,8 @@ class BluetoothConnection:
                                 detail='Too many attempts',
                                 headers={'X-Error': 'Too many attempts'}
                                 )
+        self.connected_since = datetime.now()
+        self.disconnected_since = None
         known_devices = {'0963': 'UM24C', '09c9': 'UM25C', '0d4c': 'UM34C'}
         device_name = self.send_and_receive(b'\xf0')[:4]
         self.device_name = known_devices[device_name]
@@ -99,19 +113,17 @@ class BluetoothConnection:
         self.sock.send(command)
 
     def send_and_receive(self, command: bytes) -> str:
+
         if self.sock is None:
             raise HTTPException(status_code=status.HTTP_418_IM_A_TEAPOT,
                                 detail='Not connected with bluetooth device',
                                 headers={'X-Error': 'Not connected with device'}
                                 )
         self.sock.send(command)
-        data = ''
-        data_size = 0
-        while data_size < 130:
-            payload = self.sock.recv(131)
-            data += payload.hex()
-            data_size += len(payload)
-        return data
+        buffer = bytearray()
+        while len(buffer) < 130:
+            buffer += self.sock.recv(130)
+        return buffer.hex()
 
 
 BL_SOCK = BluetoothConnection()
@@ -140,15 +152,26 @@ async def connect_by_address(bd_address: str = Path(description='Bluetooth Devic
     """
     bd_address = bd_address.replace('_', ':')
     print('Connecting with', bd_address)
-    BL_SOCK.reset()
     response = BL_SOCK.connect(bd_address=bd_address, port=port, max_attempts=max_attempts, timeout=timeout)
-
+    BL_SOCK.connected = True
     return response
 
 
-@router.get('/disconnect', summary='Disconnect from device', response_description='Successfully disconnected from device')
-async def disconnect() -> None:
+async def verify_connected():
+    if not BL_SOCK.is_connected():
+        raise HTTPException(status_code=status.HTTP_418_IM_A_TEAPOT,
+                            detail='Not connected with bluetooth device',
+                            headers={'X-Error': 'Not connected with device'}
+                            )
+
+
+@router.get('/disconnect', summary='Disconnect from device',
+            response_description='Successfully disconnected from device',
+            dependencies=[Depends(verify_connected)])
+async def disconnect() -> dict:
     """
     Disconnect from the device again
     """
     BL_SOCK.disconnect()
+    BL_SOCK.reset()
+    return {'message': 'Disconnected from device'}
