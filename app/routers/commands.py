@@ -84,7 +84,7 @@ def filter_response_data(*, data: dict, q=List[str]) -> dict:
     return response_q
 
 
-def get_response_data(q: List[str], raw=False) -> dict:
+def get_response_data(q: List[str], raw: bool = False, values_only: bool = False) -> dict:
     data = BL_SOCK.send_and_receive(command=UM34CCommands.request_data.value)
     response = data_preperation_raw(datastring=data)
 
@@ -96,7 +96,10 @@ def get_response_data(q: List[str], raw=False) -> dict:
 
     response_new = {}
     for key, (k, v) in zip(get_model_keys(UM34CResponseDataRaw), response.items()):
-        response_new[key] = {'byte_offset': k, **v, 'byte_length': v['length'], 'value_type': type(v['value']).__name__}
+        if not values_only:
+            response_new[key] = {'byte_offset': k, **v, 'byte_length': v['length'], 'value_type': type(v['value']).__name__}
+        else:
+            response_new[key] = {'value': v['value']}
 
     if q is not None:
         response_new = filter_response_data(data=response_new, q=q)
@@ -112,7 +115,8 @@ async def command_index():
 @router.get('/request_data_raw', response_model=UM34CResponseRaw, response_model_exclude_unset=True,
             summary='Receive raw data from device',
             response_description='Successfully sent command to device')
-async def request_data_raw(q: Union[List[str], None] = Query(default=None, description='Filter data by keys', examples=UM34Examples.request_data_q)):
+async def request_data_raw(key: Union[List[str], None] = Query(default=None, description='Filter data by keys', examples=UM34Examples.request_data_q),
+                           values_only: bool = Query(default=False, description='If data should only contain values')):
     """
     Request a new 130 byte response of data from the device (NOT decoded)
 
@@ -130,8 +134,8 @@ async def request_data_raw(q: Union[List[str], None] = Query(default=None, descr
     - USB data line voltage (positive)
     - USB data line voltage (negative)
     - Charging mode
-    - mAh from threshold-based rcording
-    - mWh from threshold-based rcording
+    - mAh from threshold-based recording
+    - mWh from threshold-based recording
     - Currently configured threshold for recording
     - Duration of threshold recording
     - Threshold recording active
@@ -140,14 +144,15 @@ async def request_data_raw(q: Union[List[str], None] = Query(default=None, descr
     - Resistance
     - Current screen
     """
-    return get_response_data(q=q, raw=True)
+    return get_response_data(q=key, raw=True, values_only=values_only)
 
 
 @router.get('/request_data_raw/{key}', response_model=UM34CResponseRaw, response_model_exclude_unset=True,
             summary='Receive specific raw data from device',
             response_description='Successfully sent command to device'
             )
-async def request_data_raw(key: str = Path(default=None, description='Filter data by key', min_length=7, max_length=16, examples=UM34Examples.request_data_key)):
+async def request_data_raw(key: str = Path(default=None, description='Filter data by key', min_length=7, max_length=16, examples=UM34Examples.request_data_key),
+                           values_only: bool = Query(default=False, description='If data should only contain values')):
     """
     Request a new 130 byte response of data from the device filtered by given key (NOT decoded)
 
@@ -163,8 +168,8 @@ async def request_data_raw(key: str = Path(default=None, description='Filter dat
     - USB data line voltage (positive)
     - USB data line voltage (negative)
     - Charging mode
-    - mAh from threshold-based rcording
-    - mWh from threshold-based rcording
+    - mAh from threshold-based recording
+    - mWh from threshold-based recording
     - Currently configured threshold for recording
     - Duration of threshold recording
     - Threshold recording active
@@ -173,14 +178,15 @@ async def request_data_raw(key: str = Path(default=None, description='Filter dat
     - Resistance
     - Current screen
     """
-    return get_response_data(q=[key], raw=True)
+    return get_response_data(q=[key], raw=True, values_only=values_only)
 
 
 @router.get('/request_data', response_model=UM34CResponse, response_model_exclude_unset=True,
             summary='Receive data from device',
             response_description='Successfully sent command to device'
             )
-async def request_data(q: Union[List[str], None] = Query(default=None, description='Filter data by key', examples=UM34Examples.request_data_q)):
+async def request_data(key: Union[List[str], None] = Query(default=None, description='Filter data by key', examples=UM34Examples.request_data_q),
+                       values_only: bool = Query(default=False, description='If data should only contain values')):
     """
     Request a new 130 byte response of data from the device (decoded)
 
@@ -198,8 +204,8 @@ async def request_data(q: Union[List[str], None] = Query(default=None, descripti
     - USB data line voltage (positive)
     - USB data line voltage (negative)
     - Charging mode
-    - mAh from threshold-based rcording
-    - mWh from threshold-based rcording
+    - mAh from threshold-based recording
+    - mWh from threshold-based recording
     - Currently configured threshold for recording
     - Duration of threshold recording
     - Threshold recording active
@@ -208,14 +214,15 @@ async def request_data(q: Union[List[str], None] = Query(default=None, descripti
     - Resistance
     - Current screen
     """
-    return get_response_data(q=q)
+    return get_response_data(q=key, values_only=values_only)
 
 
 @router.get('/request_data/{key}', response_model=UM34CResponse, response_model_exclude_unset=True,
             summary='Receive specific data from device',
             response_description='Successfully sent command to device'
             )
-async def request_data_by_key(key: str = Path(description='Filter data by key', min_length=7, max_length=16, examples=UM34Examples.request_data_key)):
+async def request_data_by_key(key: str = Path(description='Filter data by key', min_length=7, max_length=16, examples=UM34Examples.request_data_key),
+                              values_only: bool = Query(default=False, description='If data should only contain values')):
     """
     Request a new 130 byte response of data from the device filtered by given key (decoded)
 
@@ -231,8 +238,8 @@ async def request_data_by_key(key: str = Path(description='Filter data by key', 
     - USB data line voltage (positive)
     - USB data line voltage (negative)
     - Charging mode
-    - mAh from threshold-based rcording
-    - mWh from threshold-based rcording
+    - mAh from threshold-based recording
+    - mWh from threshold-based recording
     - Currently configured threshold for recording
     - Duration of threshold recording
     - Threshold recording active
@@ -241,7 +248,7 @@ async def request_data_by_key(key: str = Path(description='Filter data by key', 
     - Resistance
     - Current screen
     """
-    return get_response_data(q=[key])
+    return get_response_data(q=[key], values_only=values_only)
 
 
 @router.get('/next_screen', response_model=CommandResponse)
