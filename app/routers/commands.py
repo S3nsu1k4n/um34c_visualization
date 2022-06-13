@@ -1,4 +1,5 @@
-from fastapi import APIRouter, HTTPException, status, Query
+from fastapi import APIRouter, HTTPException, status, Query, Path
+from fastapi.responses import HTMLResponse, FileResponse
 from pydantic import Field, Required
 from typing import Union, List
 from enum import Enum
@@ -13,7 +14,8 @@ from .commands_models import (UM34CResponseRaw,
                               CHARGING_MODES,
                               UM34CCommands,
                               UM34CResponseDataRaw,
-                              UM34CResponseData
+                              UM34CResponseData,
+                              UM34CResponseKeys,
                               )
 
 from .bl_connection import BL_SOCK
@@ -62,7 +64,7 @@ def data_preperation_decoded(data: dict) -> dict:
 
 def get_command_response(command: Enum, code: Union[bytes, None] = None) -> dict:
     code = command.value if code is None else code
-    return {**BL_SOCK.get_info(), **{'command': command.name, 'command_code': '0' + str(code)[3:-1]}}
+    return {**{'timestamp': datetime.now()}, **BL_SOCK.get_info(), **{'command': command.name, 'command_code': '0' + str(code)[3:-1]}}
 
 
 def add2hex(hex_val: bytes, add: int) -> bytes:
@@ -81,6 +83,31 @@ def filter_response_data(*, data: dict, q=List[str]) -> dict:
             response_q[query] = data[query]
 
     return response_q
+
+
+def get_response_data(q: List[str], raw=False) -> dict:
+    data = BL_SOCK.send_and_receive(command=UM34CCommands.request_data.value)
+    response = data_preperation_raw(datastring=data)
+
+    if raw:
+        response[16]['value'] = list(map(''.join, zip(*[iter(response[16]['value'])] * 8)))
+        response[16]['value'] = [{'mAh': x, 'mWh': y} for x, y in zip(response[16]['value'][0::2], response[16]['value'][1::2])]
+    else:
+        response = data_preperation_decoded(data=response)
+
+    response_new = {}
+    for key, (k, v) in zip(get_model_keys(UM34CResponseDataRaw), response.items()):
+        response_new[key] = {'byte_offset': k, **v, 'byte_length': v['length']}
+
+    if q is not None:
+        response_new = filter_response_data(data=response_new, q=q)
+
+    return {**get_command_response(UM34CCommands.request_data), 'data': [response_new]}
+
+
+@router.get('/', include_in_schema=False)
+async def command_index():
+    return FileResponse('./app/static/templates/commands_index.html')
 
 
 @router.get('/request_data_raw', response_model=UM34CResponseRaw, response_model_exclude_unset=True)
@@ -112,24 +139,39 @@ async def request_data_raw(q: Union[List[str], None] = Query(default=None, descr
     - Resistance
     - Current screen
     """
-    data = BL_SOCK.send_and_receive(command=UM34CCommands.request_data.value)
+    return get_response_data(q=q, raw=True)
 
-    response = data_preperation_raw(datastring=data)
-    response[16]['value'] = list(map(''.join, zip(*[iter(response[16]['value'])] * 8)))
-    response[16]['value'] = [{'mAh': x, 'mWh': y} for x, y in zip(response[16]['value'][0::2], response[16]['value'][1::2])]
 
-    response_new = {}
-    for key, (k, v) in zip(get_model_keys(UM34CResponseDataRaw), response.items()):
-        response_new[key] = {'byte_offset': k, **v, 'byte_length': v['length']}
+@router.get('/request_data_raw/{key}', response_model=UM34CResponseRaw, response_model_exclude_unset=True)
+async def request_data_raw(key: str = Path(default=None, description='Filter data by key', min_length=7, max_length=16)):
+    """
+    Request a new 130 byte response of data from the device
 
-    if q is not None:
-        response_new = filter_response_data(data=response_new, q=q)
+    The response data will NOT be prepared and NOT decoded
 
-    response = {**{'timestamp': datetime.now()},
-                **get_command_response(UM34CCommands.request_data),
-                'data': [response_new]}
-
-    return response
+    Data contains:
+    - Model ID
+    - Voltage
+    - Amperage
+    - Wattage
+    - Temperature Celsius
+    - Temperature Fahrenheit
+    - Current selected data group
+    - Data of the data groups
+    - USB data line voltage (positive)
+    - USB data line voltage (negative)
+    - Charging mode
+    - mAh from threshold-based rcording
+    - mWh from threshold-based rcording
+    - Currently configured threshold for recording
+    - Duration of threshold recording
+    - Threshold recording active
+    - Current screen timeout
+    - Current backlight brightness
+    - Resistance
+    - Current screen
+    """
+    return get_response_data(q=[key], raw=True)
 
 
 @router.get('/request_data', response_model=UM34CResponse, response_model_exclude_unset=True)
@@ -161,22 +203,39 @@ async def request_data(q: Union[List[str], None] = Query(default=None, descripti
     - Resistance
     - Current screen
     """
-    data = BL_SOCK.send_and_receive(command=UM34CCommands.request_data.value)
+    return get_response_data(q=q)
 
-    response = data_preperation_raw(datastring=data)
-    response = data_preperation_decoded(data=response)
 
-    response_new = {}
-    for key, (k, v) in zip(get_model_keys(UM34CResponseData), response.items()):
-        response_new[key] = {'byte_offset': k, **v, 'byte_length': v['length']}
+@router.get('/request_data/{key}', response_model=UM34CResponse, response_model_exclude_unset=True)
+async def request_data_by_key(key: str = Path(description='Filter data by key', min_length=7, max_length=16)):
+    """
+    Request a new 130 byte response of data from the device
 
-    if q is not None:
-        response_new = filter_response_data(data=response_new, q=q)
+    The response data will be prepared and decoded
 
-    response = {**{'timestamp': datetime.now()},
-                **get_command_response(UM34CCommands.request_data),
-                'data': [response_new]}
-    return response
+    Data contains:
+    - Model ID
+    - Voltage
+    - Amperage
+    - Wattage
+    - Temperature Celsius
+    - Temperature Fahrenheit
+    - Current selected data group
+    - Data of the data groups
+    - USB data line voltage (positive)
+    - USB data line voltage (negative)
+    - Charging mode
+    - mAh from threshold-based rcording
+    - mWh from threshold-based rcording
+    - Currently configured threshold for recording
+    - Duration of threshold recording
+    - Threshold recording active
+    - Current screen timeout
+    - Current backlight brightness
+    - Resistance
+    - Current screen
+    """
+    return get_response_data(q=[key])
 
 
 @router.get('/next_screen', response_model=CommandResponse)
@@ -185,7 +244,7 @@ async def next_screen():
     Go to next screen
     """
     BL_SOCK.send(command=UM34CCommands.next_screen.value)
-    return {**{'timestamp': datetime.now()}, **get_command_response(command=UM34CCommands.next_screen)}
+    return get_command_response(command=UM34CCommands.next_screen)
 
 
 @router.get('/rotate_screen', response_model=CommandResponse)
@@ -197,7 +256,7 @@ async def rotate_screen(no_of_time: int = Query(default=1, description='How ofte
         BL_SOCK.send(command=UM34CCommands.rotate_screen.value)
         if no_of_time > 1:
             time.sleep(0.9)
-    return {**{'timestamp': datetime.now()}, **get_command_response(command=UM34CCommands.rotate_screen)}
+    return get_command_response(command=UM34CCommands.rotate_screen)
 
 
 @router.get('/previous_screen', response_model=CommandResponse)
@@ -206,7 +265,7 @@ async def previous_screen():
     Go to previous screen
     """
     BL_SOCK.send(command=UM34CCommands.previous_screen.value)
-    return {**{'timestamp': datetime.now()}, **get_command_response(command=UM34CCommands.previous_screen)}
+    return get_command_response(command=UM34CCommands.previous_screen)
 
 
 @router.get('/clear_data_group', response_model=CommandResponse)
@@ -225,11 +284,11 @@ async def clear_data_group(group_no: Union[int, None] = Query(default=None, desc
         BL_SOCK.send(command=code)
         time.sleep(0.03)
     BL_SOCK.send(command=UM34CCommands.clear_data_group.value)
-    return {**{'timestamp': datetime.now()}, **get_command_response(command=UM34CCommands.clear_data_group, code=code)}
+    return get_command_response(command=UM34CCommands.clear_data_group, code=code)
 
 
-@router.get('/select_data_group', response_model=CommandResponse)
-async def select_data_group(group_no: int = Query(default=Required, description='Group number to switch to', ge=0, le=9)):
+@router.get('/select_data_group/{group_no}', response_model=CommandResponse)
+async def select_data_group(group_no: int = Path(default=Required, description='Group number to switch to', ge=0, le=9)):
     """
     Set the selected data group between 0 and 9
     - 0 = set selected group to 0
@@ -237,11 +296,11 @@ async def select_data_group(group_no: int = Query(default=Required, description=
     """
     code = add2hex(UM34CCommands.select_group.value, group_no)
     BL_SOCK.send(command=code)
-    return {**{'timestamp': datetime.now()}, **get_command_response(command=UM34CCommands.select_group, code=code)}
+    return get_command_response(command=UM34CCommands.select_group, code=code)
 
 
-@router.get('/set_recording_threshold', response_model=CommandResponse)
-async def set_recording_threshold(thresh: int = Query(default=Required, description='Threshold in centiamps', ge=0, le=30)):
+@router.get('/set_recording_threshold/{centi_amps}', response_model=CommandResponse)
+async def set_recording_threshold(centi_amps: int = Path(default=Required, description='Threshold in centiamps', ge=0, le=30)):
     """
     Set recording threshold to a value between 0.00 and 0.30 A
     - 0 = 0.00 A
@@ -249,13 +308,13 @@ async def set_recording_threshold(thresh: int = Query(default=Required, descript
     - 15 = 0.15 A
     - 30 = 0.30 A
     """
-    code = add2hex(UM34CCommands.recording_threshold.value, thresh)
+    code = add2hex(UM34CCommands.recording_threshold.value, centi_amps)
     BL_SOCK.send(command=code)
-    return {**{'timestamp': datetime.now()}, **get_command_response(command=UM34CCommands.recording_threshold, code=code)}
+    return get_command_response(command=UM34CCommands.recording_threshold, code=code)
 
 
-@router.get('/set_backlight_level', response_model=CommandResponse)
-async def set_backlight_level(level: int = Query(default=Required, description='Device backlight level', ge=0, le=5)):
+@router.get('/set_backlight_level/{level}', response_model=CommandResponse)
+async def set_backlight_level(level: int = Path(default=Required, description='Device backlight level', ge=0, le=5)):
     """
     Set device backlight level between 0 and 5 (inclusive)
     - 0 = dim
@@ -263,11 +322,11 @@ async def set_backlight_level(level: int = Query(default=Required, description='
     """
     code = add2hex(UM34CCommands.backlight_level.value, level)
     BL_SOCK.send(command=code)
-    return {**{'timestamp': datetime.now()}, **get_command_response(command=UM34CCommands.backlight_level, code=code)}
+    return get_command_response(command=UM34CCommands.backlight_level, code=code)
 
 
-@router.get('/set_screen_timeout', response_model=CommandResponse)
-async def set_screen_timeout(minutes: int = Query(default=Required, description='Screen timeout in minutes', ge=0, le=9)):
+@router.get('/set_screen_timeout/{minutes}', response_model=CommandResponse)
+async def set_screen_timeout(minutes: int = Path(default=Required, description='Screen timeout in minutes', ge=0, le=9)):
     """
     Set screen timeout between 0 and 9 minutes (inclusive)
     - 0 = no screensaver
@@ -276,11 +335,11 @@ async def set_screen_timeout(minutes: int = Query(default=Required, description=
     """
     code = add2hex(UM34CCommands.screen_timeout.value, minutes)
     BL_SOCK.send(command=code)
-    return {**{'timestamp': datetime.now()}, **get_command_response(command=UM34CCommands.screen_timeout, code=code)}
+    return get_command_response(command=UM34CCommands.screen_timeout, code=code)
 
 
-@router.get('/set_screen', response_model=CommandResponse)
-async def set_screen(no: int = Query(default=Required, description='Number of screen to go to', ge=0, le=5)):
+@router.get('/set_screen/{no}', response_model=CommandResponse)
+async def set_screen(no: int = Path(default=Required, description='Number of screen to go to', ge=0, le=5)):
     """
     Go to a specific screen (0 - 5)
     - 0 = go to most left screen
@@ -299,7 +358,7 @@ async def set_screen(no: int = Query(default=Required, description='Number of sc
             BL_SOCK.send(command=command.value)
             time.sleep(0.3)
         BL_SOCK.send(command=command.value)
-        return {**{'timestamp': datetime.now()}, **get_command_response(command=command)}
+        return get_command_response(command=command)
     else:
         return {**{'timestamp': datetime.now()}, **BL_SOCK.get_info(), **{'command': None, 'command_code': None}}
 

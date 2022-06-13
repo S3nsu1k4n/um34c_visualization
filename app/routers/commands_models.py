@@ -46,9 +46,9 @@ CHARGING_MODES = [{'value': 'UNKNOWN', 'description': 'Charging mode: Unknown, o
 
 class BLDevice(BaseModel):
     timestamp: datetime
-    name: Union[str, None] = None
-    bd_address: Union[str, None] = Field(default=None, title='bd_address', min_length=17, max_length=17)
-    port: Union[int, None] = Field(default=None)
+    name: Union[str, None] = Field(default=None, example='UM34C')
+    bd_address: Union[str, None] = Field(default=None, title='bd_address', min_length=17, max_length=17, example='12_34_56_78_9a_bc')
+    port: Union[int, None] = Field(default=None, example=1)
 
 
 class UM34CCommands(Enum):
@@ -64,16 +64,16 @@ class UM34CCommands(Enum):
 
 
 class CommandResponse(BLDevice):
-    command: Union[str, None] = Field(title='Used command')
-    command_code: Union[str, None] = Field(title='Code of used command')
+    command: Union[str, None] = Field(title='Used command', example='0xf0')
+    command_code: Union[str, None] = Field(title='Code of used command', example=UM34CCommands.request_data.name)
 
 
 class UM34CResponseBase(BaseModel):
-    type: Union[str, None] = None
-    description: Union[str, None] = None
-    byte_offset: Union[int, None] = None
-    byte_length: Union[int, None] = None
-    value_unit: Union[str, None] = None
+    type: Union[str, None] = Field(default=None, example='measurement')
+    description: Union[str, None] = Field(default=None, example='Current measured voltage')
+    byte_offset: Union[int, None] = Field(default=None, example=116)
+    byte_length: Union[int, None] = Field(default=None, example=2)
+    value_unit: Union[str, None] = Field(default=None, example='V')
 
 
 class UM34CResponseGroupDataRaw(BaseModel):
@@ -82,35 +82,35 @@ class UM34CResponseGroupDataRaw(BaseModel):
 
 
 class UM34CResponseGroupData(BaseModel):
-    mAh: Union[float, None] = None
-    mWh: Union[float, None] = None
+    mAh: Union[int, None] = Field(default=None, example=23)
+    mWh: Union[int, None] = Field(default=None, example=116)
 
 
 class UM34CResponseDatapointStr(UM34CResponseBase):
     value_type = 'string'
-    value: Union[str, None] = None
+    value: Union[str, None] = Field(default=None, example='UM34C')
 
 
 class UM34CResponseDatapointInt(UM34CResponseBase):
     value_type = 'integer'
-    value: Union[int, None] = None
+    value: Union[int, None] = Field(default=None, example=33)
     value_unit = '1'
 
 
 class UM34CResponseDatapointFloat(UM34CResponseBase):
     value_type = 'float'
-    value: Union[float, None] = None
+    value: Union[float, None] = Field(default=None, example=220.8)
     value_unit = '1'
 
 
 class UM34CResponseDatapointBool(UM34CResponseBase):
     value_type = 'bool'
-    value: Union[bool, None] = None
+    value: Union[bool, None] = Field(default=None, example=False)
 
 
 class UM34CResponseDatapointList(UM34CResponseBase):
     value_type = 'array'
-    value: Union[List[UM34CResponseGroupData], None] = None
+    value: Union[List[UM34CResponseGroupData], None] = Field(default=None, example=[{"mAh": 23,"mWh": 116},{"mAh": 0,"mWh": 0}])
 
 
 class UM34CResponseDatapointListRaw(UM34CResponseBase):
@@ -119,26 +119,26 @@ class UM34CResponseDatapointListRaw(UM34CResponseBase):
 
 
 class UM34CResponseData(BaseModel):
-    model_id: Union[UM34CResponseDatapointStr, None] = None
-    voltage: Union[UM34CResponseDatapointFloat, None] = None
-    amperage: Union[UM34CResponseDatapointFloat, None] = None
-    wattage: Union[UM34CResponseDatapointFloat, None] = None
-    temperature_c: Union[UM34CResponseDatapointInt, None] = None
-    temperature_f: Union[UM34CResponseDatapointInt, None] = None
-    selected_group: Union[UM34CResponseDatapointInt, None] = None
-    group_data: Union[UM34CResponseDatapointList, None] = None
-    usb_volt_pos: Union[UM34CResponseDatapointFloat, None] = None
-    usb_volt_neg: Union[UM34CResponseDatapointFloat, None] = None
-    charging_mode: Union[UM34CResponseDatapointStr, None] = None
-    thresh_mah: Union[UM34CResponseDatapointInt, None] = None
-    thresh_mwh: Union[UM34CResponseDatapointInt, None] = None
-    thresh_amps: Union[UM34CResponseDatapointFloat, None] = None
-    thresh_seconds: Union[UM34CResponseDatapointInt, None] = None
-    thresh_active: Union[UM34CResponseDatapointBool, None] = None
-    screen_timeout: Union[UM34CResponseDatapointInt, None] = None
-    screen_backlight: Union[UM34CResponseDatapointInt, None] = None
-    resistance: Union[UM34CResponseDatapointFloat, None] = None
-    cur_screen: Union[UM34CResponseDatapointInt, None] = None
+    model_id: Union[UM34CResponseDatapointStr, None] = Field(default=None, example={"type":"model","description":"Model ID","byte_offset":0,"byte_length":2,"value":"UM34C"})
+    voltage: Union[UM34CResponseDatapointFloat, None] = Field(default=None, example={"type":"measurement","description":"Current measured voltage","byte_offset":2,"byte_length":2,"value_unit":"V","value":5.08})
+    amperage: Union[UM34CResponseDatapointFloat, None] = Field(default=None, example={"type":"measurement","description":"Current measured amperage","byte_offset":4,"byte_length":2,"value_unit":"A","value":0.023})
+    wattage: Union[UM34CResponseDatapointFloat, None] = Field(default=None, example={"type":"measurement","description":"Current measured wattage","byte_offset":6,"byte_length":4,"value_unit":"W","value":0.116})
+    temperature_c: Union[UM34CResponseDatapointInt, None] = Field(default=None, example={"type":"measurement","description":"Current measured temperature Celsius","byte_offset":10,"byte_length":2,"value_unit":"C","value":33})
+    temperature_f: Union[UM34CResponseDatapointInt, None] = Field(default=None, example={"type":"measurement","description":"Current measured temperature Fahrenheit","byte_offset":12,"byte_length":2,"value_unit":"F","value":92})
+    selected_group: Union[UM34CResponseDatapointInt, None] = Field(default=None, example={"type":"configuration","description":"Current selected datagroup, zero-indexed","byte_offset":14,"byte_length":2,"value":0})
+    group_data: Union[UM34CResponseDatapointList, None] = Field(default=None, example=[{"mAh":28,"mWh":145},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0},{"mAh":0,"mWh":0}])
+    usb_volt_pos: Union[UM34CResponseDatapointFloat, None] = Field(default=None, example={"type":"measurement","description":"USB dataline voltage (positive)","byte_offset":96,"byte_length":2,"value_unit":"V","value":2.89})
+    usb_volt_neg: Union[UM34CResponseDatapointFloat, None] = Field(default=None, example={"type":"measurement","description":"USB dataline voltage (negative)","byte_offset":98,"byte_length":2,"value_unit":"V","value":0.03})
+    charging_mode: Union[UM34CResponseDatapointStr, None] = Field(default=None, example={"type":"measurement","description":"Charging mode: Unknown, or normal (non-custommode)","byte_offset":100,"byte_length":2,"value":"UNKNOWN"})
+    thresh_mah: Union[UM34CResponseDatapointInt, None] = Field(default=None, example={"type":"measurement","description":"mAh from threshold-based recording","byte_offset":102,"byte_length":4,"value_unit":"mAh","value":0})
+    thresh_mwh: Union[UM34CResponseDatapointInt, None] = Field(default=None, example={"type":"measurement","description":"mWh from threshold-based recording","byte_offset":106,"byte_length":4,"value_unit":"mWh","value":0})
+    thresh_amps: Union[UM34CResponseDatapointFloat, None] = Field(default=None, example={"type":"configuration","description":"Currently configured amperage for threshold recording","byte_offset":110,"byte_length":2,"value_unit":"A","value":0.3})
+    thresh_seconds: Union[UM34CResponseDatapointInt, None] = Field(default=None, example={"type":"measurement","description":"Duration of threshold recording,in cumulative seconds","byte_offset":112,"byte_length":4,"value_unit":"s","value":0})
+    thresh_active: Union[UM34CResponseDatapointBool, None] = Field(default=None, example={"type":"configuration","description":"Threshold recording active","byte_offset":116,"byte_length":2,"value":False})
+    screen_timeout: Union[UM34CResponseDatapointInt, None] = Field(default=None, example={"type":"configuration","description":"Current screen timeout setting,in minutes (0-9)","byte_offset":118,"byte_length":2,"value_unit":"min","value":0})
+    screen_backlight: Union[UM34CResponseDatapointInt, None] = Field(default=None, example={"type":"configuration","description":"Current backlight setting (0-5)","byte_offset":120,"byte_length":2,"value":5})
+    resistance: Union[UM34CResponseDatapointFloat, None] = Field(default=None, example={"type":"measurement","description":"Resistance","byte_offset":122,"byte_length":4,"value_unit":"Ω","value":220.8})
+    cur_screen: Union[UM34CResponseDatapointInt, None] = Field(default=None, example={"type":"configuration","description":"Current screen","byte_offset":126,"byte_length":2,"value":0})
 
 
 class UM34CResponseDataRaw(BaseModel):
@@ -170,3 +170,221 @@ class UM34CResponse(CommandResponse):
 
 class UM34CResponseRaw(CommandResponse):
     data: Union[List[UM34CResponseDataRaw], None] = None
+
+    class Config:
+        schema_extra = {
+            'example': {
+              "name": "UM34C",
+              "port": 1,
+              "command": "request_data",
+              "command_code": "0xf0",
+              "data": [
+                {
+                  "model_id": {
+                    "type": "model",
+                    "description": "Model ID",
+                    "byte_offset": 0,
+                    "byte_length": 2,
+                    "value": "0d4c"
+                  },
+                  "voltage": {
+                    "type": "measurement",
+                    "description": "Current measured voltage",
+                    "byte_offset": 2,
+                    "byte_length": 2,
+                    "value": "01fc"
+                  },
+                  "amperage": {
+                    "type": "measurement",
+                    "description": "Current measured amperage",
+                    "byte_offset": 4,
+                    "byte_length": 2,
+                    "value": "0017"
+                  },
+                  "wattage": {
+                    "type": "measurement",
+                    "description": "Current measured wattage",
+                    "byte_offset": 6,
+                    "byte_length": 4,
+                    "value": "00000074"
+                  },
+                  "temperature_c": {
+                    "type": "measurement",
+                    "description": "Current measured temperature Celsius",
+                    "byte_offset": 10,
+                    "byte_length": 2,
+                    "value": "0021"
+                  },
+                  "temperature_f": {
+                    "type": "measurement",
+                    "description": "Current measured temperature Fahrenheit",
+                    "byte_offset": 12,
+                    "byte_length": 2,
+                    "value": "005c"
+                  },
+                  "selected_group": {
+                    "type": "configuration",
+                    "description": "Current selected data group, zero-indexed",
+                    "byte_offset": 14,
+                    "byte_length": 2,
+                    "value": "0000"
+                  },
+                  "group_data": {
+                    "type": "measurement",
+                    "description": "Array of 10 data groups. For each data group: 4 bytes mAh, 4 bytes mWh",
+                    "byte_offset": 16,
+                    "byte_length": 80,
+                    "value": [
+                      {
+                        "mAh": "00000022",
+                        "mWh": "000000ad"
+                      },
+                      {
+                        "mAh": "00000000",
+                        "mWh": "00000000"
+                      },
+                      {
+                        "mAh": "00000000",
+                        "mWh": "00000000"
+                      },
+                      {
+                        "mAh": "00000000",
+                        "mWh": "00000000"
+                      },
+                      {
+                        "mAh": "00000000",
+                        "mWh": "00000000"
+                      },
+                      {
+                        "mAh": "00000000",
+                        "mWh": "00000000"
+                      },
+                      {
+                        "mAh": "00000000",
+                        "mWh": "00000000"
+                      },
+                      {
+                        "mAh": "00000000",
+                        "mWh": "00000000"
+                      },
+                      {
+                        "mAh": "00000000",
+                        "mWh": "00000000"
+                      },
+                      {
+                        "mAh": "00000000",
+                        "mWh": "00000000"
+                      }
+                    ]
+                  },
+                  "usb_volt_pos": {
+                    "type": "measurement",
+                    "description": "USB data line voltage (positive)",
+                    "byte_offset": 96,
+                    "byte_length": 2,
+                    "value": "0121"
+                  },
+                  "usb_volt_neg": {
+                    "type": "measurement",
+                    "description": "USB data line voltage (negative)",
+                    "byte_offset": 98,
+                    "byte_length": 2,
+                    "value": "0001"
+                  },
+                  "charging_mode": {
+                    "type": "measurement",
+                    "description": "Charging mode index",
+                    "byte_offset": 100,
+                    "byte_length": 2,
+                    "value": "0000"
+                  },
+                  "thresh_mah": {
+                    "type": "measurement",
+                    "description": "mAh from threshold-based recording",
+                    "byte_offset": 102,
+                    "byte_length": 4,
+                    "value": "00000000"
+                  },
+                  "thresh_mwh": {
+                    "type": "measurement",
+                    "description": "mWh from threshold-based recording",
+                    "byte_offset": 106,
+                    "byte_length": 4,
+                    "value": "00000000"
+                  },
+                  "thresh_amps": {
+                    "type": "configuration",
+                    "description": "Currently configured amperage for threshold recording",
+                    "byte_offset": 110,
+                    "byte_length": 2,
+                    "value": "001e"
+                  },
+                  "thresh_seconds": {
+                    "type": "measurement",
+                    "description": "Duration of threshold recording, in cumulative seconds",
+                    "byte_offset": 112,
+                    "byte_length": 4,
+                    "value": "00000000"
+                  },
+                  "thresh_active": {
+                    "type": "configuration",
+                    "description": "Threshold recording active",
+                    "byte_offset": 116,
+                    "byte_length": 2,
+                    "value": "0000"
+                  },
+                  "screen_timeout": {
+                    "type": "configuration",
+                    "description": "Current screen timeout setting, in minutes (0-9)",
+                    "byte_offset": 118,
+                    "byte_length": 2,
+                    "value": "0000"
+                  },
+                  "screen_backlight": {
+                    "type": "configuration",
+                    "description": "Current backlight setting (0-5)",
+                    "byte_offset": 120,
+                    "byte_length": 2,
+                    "value": "0005"
+                  },
+                  "resistance": {
+                    "type": "measurement",
+                    "description": "Resistance",
+                    "byte_offset": 122,
+                    "byte_length": 4,
+                    "value": "000008a0"
+                  },
+                  "cur_screen": {
+                    "type": "configuration",
+                    "description": "Current screen",
+                    "byte_offset": 126,
+                    "byte_length": 2,
+                    "value": "0000"
+                  }
+                }
+              ]
+            }
+                    }
+
+
+class UM34CResponseKeys(BaseModel):
+    model_id = 'model_id'
+    voltage = 'voltage'
+    amperage = 'amperage'
+    wattage = 'wattage'
+    temperature_c = 'temperature_c'
+    temperature_f = 'temperature_f'
+    selected_group = 'selected_group'
+    group_data = 'group_data'
+    usb_volt_pos = 'usb_volt_pos'
+    usb_volt_neg = 'usb_volt_neg'
+    charging_mode = 'charging_mode'
+    thresh_mah = 'thresh_mah'
+    thresh_mwh = 'thresh_mwh'
+    thresh_amps = 'thresh_amps'
+    thresh_seconds = 'thresh_seconds'
+    thresh_active = 'thresh_active'
+    screen_timeout = 'screen_timeout'
+    screen_backlight = 'screen_backlight'
+    resistance = 'resistance'
+    cur_screen = 'cur_screen'

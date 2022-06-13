@@ -12,18 +12,9 @@ app.include_router(bl_connection.router)
 app.include_router(commands.router)
 
 
-@app.get('/')
+@app.get('/', include_in_schema=False)
 async def root():
-    content = """
-    <!DOCTYPE html>
-    <html>
-    <body>
-    <h1>UM34C with FastAPI</h1>
-     <a href="/docs">docs</a> 
-    </body>
-    </html>
-    """
-    return HTMLResponse(content=content)
+    return FileResponse('./app/static/templates/index.html')
 
 
 @app.middleware('http')

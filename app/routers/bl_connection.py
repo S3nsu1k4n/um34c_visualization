@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException, status, Query
-from pydantic import Required
-from typing import Union, List
+from fastapi import APIRouter, HTTPException, status, Query, Path
+from fastapi.responses import FileResponse
+from datetime import datetime
+from typing import Union
 import socket
 
 from .commands_models import BLDevice
@@ -8,7 +9,7 @@ from config import UM34CConfig
 
 
 router = APIRouter(
-    prefix='/bl',
+    prefix='/bluetooth',
     tags=['bluetooth'],
     dependencies=[],
     responses={}
@@ -56,9 +57,10 @@ class BluetoothConnection:
         self.bd_address = bd_address
         self.port = port
         self.sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM, socket.BTPROTO_RFCOMM)
+        #self.sock.settimeout(int(UM34CConfig.ATTEMPT_DELAY.value)/1000)
         self.attempts = 0
 
-        if self.attempts <= 5 or self.bd_address is not self.port:
+        if self.attempts <= int(UM34CConfig.MAX_ATTEMPTS.value) or self.bd_address is not self.port:
             try:
                 self.sock.connect((self.bd_address, self.port))
             except TimeoutError:
@@ -70,8 +72,8 @@ class BluetoothConnection:
             except OSError:
                 self.sock.close()
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
-                                    detail='No bluetooth device found',
-                                    headers={'X-Error': 'No bluetooth device found'}
+                                    detail='Problem to connect to device by bluetooth',
+                                    headers={'X-Error': 'Problem to connect to device by bluetooth'}
                                     )
 
         else:
@@ -84,15 +86,25 @@ class BluetoothConnection:
         device_name = self.send_and_receive(b'\xf0')[:4]
         self.device_name = known_devices[device_name]
 
-        return {'name': self.device_name, 'bd_address': self.bd_address, 'port': self.port}
+        return {'timestamp': datetime.now(), 'name': self.device_name, 'bd_address': self.bd_address, 'port': self.port}
 
     def disconnect(self) -> None:
         self.sock.close()
 
     def send(self, command: bytes) -> None:
+        if self.sock is None:
+            raise HTTPException(status_code=status.HTTP_418_IM_A_TEAPOT,
+                                detail='Not connected with bluetooth device',
+                                headers={'X-Error': 'Not connected with device'}
+                                )
         self.sock.send(command)
 
     def send_and_receive(self, command: bytes) -> str:
+        if self.sock is None:
+            raise HTTPException(status_code=status.HTTP_418_IM_A_TEAPOT,
+                                detail='Not connected with bluetooth device',
+                                headers={'X-Error': 'Not connected with device'}
+                                )
         self.sock.send(command)
         data = ''
         data_size = 0
@@ -106,66 +118,26 @@ class BluetoothConnection:
 BL_SOCK = BluetoothConnection()
 
 
-def search_nearby_devices():
-    data = []
-    for device in bluetooth.discover_devices(lookup_names=True):
-        data.append({'name': device[1], 'bd_addr': device[0]})
-    if len(data) == 0:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail='No bluetooth device found',
-                            headers={'X-Error': 'No bluetooth device found'}
-                            )
-    return data
+@router.get('/', include_in_schema=False)
+async def bl_index():
+    return FileResponse('./app/static/templates/bluetooth_index.html')
 
 
-@router.get('/nearby', response_model=List[BLDevice])
-async def get_nearby_devices():
-    """
-    Search nearby bluetooth devices and return a list of names and their adresses
-    """
-    return search_nearby_devices()
-
-
-@router.get('/connect_by_devicename')
-async def connect_by_devicename(device_name: str = Query(default=Required, description='Name of bluetooth device to connect to', max_length=32),
-                                port: int = Query(default=1, description='Port number of bluetooth connection'),
-                                ):
-    """
-    Connect to the device by its device name
-    1. Step: Search nearby bluetooth devices
-    2. Step: Check if device_name is found
-    3. Step: Connect to the device with the found bd_address:
-
-    - **device_name**: The name of the device to connect to via bluetooth
-    """
-    found_devices = search_nearby_devices()
-    bd_address = None
-    for device in found_devices:
-        if device_name == device['name']:
-            bd_address = device['bd_addr']
-            print(bd_address)
-
-    if bd_address is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"Bluetooth address of '{device_name}' not found",
-                            headers={'X-Error': f'Bluetooth address of "{device_name}" not found'}
-                            )
-
-    # TODO connect with found address
-    print('FOUND', bd_address)
-
-
-@router.get('/connect_by_bd_address')
-async def connect_by_address(bd_address: str = Query(default=UM34CConfig.BD_ADDRESS.value, description='Bluetooth Device Address to connect to', max_length=17, min_length=17),
-                             port: int = Query(default=1, description='Port number of bluetooth connection'),):
+@router.get('/connect_by_bd_address/{bd_address}', response_model=BLDevice,
+            status_code=status.HTTP_201_CREATED,
+            summary='Connect with bluetooth by bd_address',
+            response_description='Successfully connected via bluetooth'
+            )
+async def connect_by_address(bd_address: str = Path(default=UM34CConfig.BD_ADDRESS.value, description='Bluetooth Device Address to connect to', max_length=17, min_length=17),
+                             port: int = Query(default=1, description='Port number of bluetooth connection', ge=1, le=30)):
     """
     Connect to the device with the specified bd_address:
 
     - **bd_addr**: The Bluetooth Device Address to connect to
+    - possible to use **_** instead of **:**
     """
     bd_address = bd_address.replace('_', ':')
     print('Connecting with', bd_address)
-    # TODO connect with address
     BL_SOCK.reset()
     response = BL_SOCK.connect(bd_address=bd_address, port=port)
 

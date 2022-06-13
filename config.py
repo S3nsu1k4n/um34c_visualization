@@ -12,3 +12,5 @@ class ServerConfig(str, Enum):
 
 class UM34CConfig(str, Enum):
     BD_ADDRESS = environ.get('BD_ADDRESS') or 'xx:xx:xx:xx:xx:xx'
+    MAX_ATTEMPTS = environ.get('MAX_ATTEMPTS') or '10'
+    ATTEMPT_DELAY = environ.get('ATTEMPT_DELAY') or '5000'
