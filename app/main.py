@@ -2,12 +2,40 @@ import os
 import time
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, FileResponse
-
 from config import ServerConfig
 
 from .routers import bl_connection, commands
 
-app = FastAPI()
+description = """
+    UM34C API to easily control and receive data from an UM34C device via an API.
+    
+    ## bluetooth
+    
+    Provides bluetooth related functions to easily connect and disconnect to the device.
+    
+    ## command
+    
+    Provides all commands possible to control the device
+    * **requesting data from device (decoded or raw)**
+    * **go to next screen**
+    * **to to previous screen**
+    * **go to a specific screen**
+    * **rotate screen**
+    * **delete data of a group**
+    * **select a group**
+    * **setting threshold**
+    * **setting backlight of the screen**
+    * **setting timeout of the screen**
+    * **resetting the device**
+"""
+
+app = FastAPI(
+    title='UM34C with FastAPI',
+    description=description,
+    version='2022.06.14',
+    openapi_tags=[{'name': 'bluetooth', 'description': 'Commands connecting to UM34C'},
+                  {'name': 'command', 'description': 'Commands controlling UM34C'}]
+)
 app.include_router(bl_connection.router)
 app.include_router(commands.router)
 
