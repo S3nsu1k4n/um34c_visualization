@@ -5,6 +5,7 @@ from typing import Union
 import socket
 
 from .commands_models import BLDevice, UM34Examples
+from config import BluetoothSettings
 
 
 router = APIRouter(
@@ -140,9 +141,9 @@ async def bl_index():
             response_description='Successfully connected to device'
             )
 async def connect_by_address(bd_address: str = Path(description='Bluetooth Device Address to connect to', max_length=17, min_length=17, examples=UM34Examples.bd_address),
-                             port: int = Query(default=1, description='Port number of bluetooth connection', ge=1, le=30),
-                             max_attempts: int = Query(default=10, description='Max attempts before giving up connecting', ge=1, examples=UM34Examples.max_attempts),
-                             timeout: int = Query(default=5000, description='Timeout in milliseconds', ge=1, examples=UM34Examples.attempt_delay),):
+                             port: int = Query(default=BluetoothSettings().bl_port, description='Port number of bluetooth connection', ge=1, le=30),
+                             max_attempts: int = Query(default=BluetoothSettings().max_attempts, description='Max attempts before giving up connecting', ge=1, examples=UM34Examples.max_attempts),
+                             timeout: int = Query(default=BluetoothSettings().attempts_delay, description='Timeout in milliseconds', ge=1, examples=UM34Examples.attempt_delay),):
     """
     Connect to the device with the specified bd_address (- possible to use **_** instead of **:**):
     - **bd_addr**: The Bluetooth Device Address to connect to

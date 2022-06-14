@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from enum import Enum
 from typing import Union, List
 from datetime import datetime
-from config import UM34CConfig
+from config import BluetoothSettings
 
 
 RESPONSE_FORMAT = [{'length': 2, 'type': 'model', 'description': 'Model ID'},
@@ -424,9 +424,9 @@ class UM34Examples(Enum):
                             'Measurement data': {'description': 'Get only measurement data', 'value': ['voltage', 'amperage', 'wattage', 'temperature_c', 'temperature_f', 'group_data', 'charging_mode', 'usb_volt_pos', 'usb_volt_neg', 'thresh_mah','thresh_mwh', 'thresh_seconds', 'resistance']},
                             'Configuration data': {'description': 'Get only configuration data','value': ['selected_group', 'thresh_amps', 'thresh_active', 'screen_timeout', 'screen_backlight', 'cur_screen']},
                             }
-    bd_address: dict = {'default': {'description': 'default example value', 'value': None}, 'From configuration': {'description': 'Use bd address from configuration', 'value': UM34CConfig.BD_ADDRESS},}
-    max_attempts: dict = {'default': {'description': 'default example value', 'value': 10}, 'From configuration': {'description': 'Use max attempts from configuration', 'value': UM34CConfig.MAX_ATTEMPTS}, }
-    attempt_delay: dict = {'default': {'description': 'default example value', 'value': 5000}, 'From configuration': {'description': 'Use attempt delay from configuration', 'value': UM34CConfig.ATTEMPT_DELAY}, }
+    bd_address: dict = {'default': {'description': 'default example value', 'value': None}, 'From configuration': {'description': 'Use bd address from configuration', 'value': BluetoothSettings().bd_address},}
+    max_attempts: dict = {'default': {'description': 'default example value', 'value': 10}, 'From configuration': {'description': 'Use max attempts from configuration', 'value': BluetoothSettings().max_attempts}, }
+    attempt_delay: dict = {'default': {'description': 'default example value', 'value': 5000}, 'From configuration': {'description': 'Use attempt delay from configuration', 'value': BluetoothSettings().attempts_delay}, }
     clear_data_group: dict = {'default (Delete current group data)': {'description': 'default example value (delete current selected group)', 'value': None},
                               'Delete group 1 data': {'description': 'Select group 1 and delete its data', 'value': 1},
                               'Delete group 2 data': {'description': 'Select group 2 and delete its data', 'value': 2},

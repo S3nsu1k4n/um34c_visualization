@@ -1,8 +1,9 @@
 import os
 import time
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, FileResponse
-from config import ServerConfig
+from fastapi import FastAPI, Request, Depends
+from fastapi.responses import FileResponse
+from functools import lru_cache
+from config import ServerSettings, Settings
 
 from .routers import bl_connection, commands
 
@@ -32,7 +33,7 @@ description = """
 app = FastAPI(
     title='UM34C with FastAPI',
     description=description,
-    version='2022.06.14',
+    version='2022.06.15',
     openapi_tags=[{'name': 'bluetooth', 'description': 'Commands connecting to UM34C'},
                   {'name': 'command', 'description': 'Commands controlling UM34C'}]
 )
@@ -43,6 +44,16 @@ app.include_router(commands.router)
 @app.get('/', include_in_schema=False)
 async def root():
     return FileResponse('./app/static/templates/index.html')
+
+
+@lru_cache()
+def get_settings():
+    return Settings()
+
+
+@app.get('/info', response_model=Settings, summary='Get settings values', response_description='Settings values', tags=['main'])
+async def info(settings: Settings = Depends(get_settings)):
+    return settings
 
 
 @app.middleware('http')
@@ -78,6 +89,6 @@ async def apple_touch_icon_composed():
 if __name__ == '__main__':
     os.system(f'uvicorn main:app '
               '--reload '
-              f'--host {ServerConfig.HOST.value} '
-              f'--port {ServerConfig.PORT.value} '
+              f'--host {ServerSettings().host} '
+              f'--port {ServerSettings().port} '
               )
