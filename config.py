@@ -13,8 +13,12 @@ class ServerSettings(BaseSettings):
 class BluetoothSettings(BaseSettings):
     bd_address = environ.get('BD_ADDRESS') or 'xx:xx:xx:xx:xx:xx'
     bl_port = environ.get('BL_PORT') or '1'
-    max_attempts = environ.get('MAX_ATTEMPTS') or '10'
-    attempts_delay = environ.get('ATTEMPT_DELAY') or '5000'
+    max_attempts: int = environ.get('MAX_ATTEMPTS') or '10'
+    attempts_delay: int = environ.get('ATTEMPT_DELAY') or '5000'
+
+
+class SQLSetting(BaseSettings):
+    sqlalchemy_database_url = environ.get('SQLALCHEMY_DATABASE_URL') or 'sqlite:///./sql_app.db'
 
 
 class Settings(BaseSettings):
