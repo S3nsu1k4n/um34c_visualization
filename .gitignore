@@ -1,2 +1,7 @@
 .idea
 .env
+device_control_app/bin
+device_control_app/include
+device_control_app/lib
+device_control_app/share
+device_control_app/pyvenv.cfg
