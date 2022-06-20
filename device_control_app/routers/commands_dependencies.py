@@ -1,15 +1,6 @@
 from fastapi import HTTPException, status, Path, Query
 from typing import Union, List
-from .bl_connection import BL_SOCK
 from .commands_models import UM34CResponseKeys, UM34Examples
-
-
-async def verify_connected():
-    if not BL_SOCK.is_connected():
-        raise HTTPException(status_code=status.HTTP_418_IM_A_TEAPOT,
-                            detail='Not connected with bluetooth device',
-                            headers={'X-Error': 'Not connected with device'}
-                            )
 
 
 async def verify_key_allowed(key: str = Path(default=None,

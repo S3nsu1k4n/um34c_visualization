@@ -5,6 +5,7 @@ from datetime import datetime
 from config import BluetoothSettings
 
 
+
 RESPONSE_FORMAT = [{'length': 2, 'type': 'model', 'description': 'Model ID'},
                  {'length': 2, 'type': 'measurement', 'description': 'Current measured voltage'},
                  {'length': 2, 'type': 'measurement', 'description': 'Current measured amperage'},
@@ -33,7 +34,7 @@ RESPONSE_FORMAT = [{'length': 2, 'type': 'model', 'description': 'Model ID'},
 KNOWN_DEVICES = {'0963': 'UM24C', '09c9': 'UM25C', '0d4c': 'UM34C'}
 
 
-CHARGING_MODES = [{'value': 'UNKNOWN', 'description': 'Charging mode: Unknown, or normal (non-custom mode)'},
+CHARGING_MODES = [{'value': 'Unknown', 'description': 'Charging mode: Unknown, or normal (non-custom mode)'},
                       {'value': 'QC2', 'description': 'Charging mode: Qualcomm Quick Charge 2.0'},
                       {'value': 'QC3', 'description': 'Charging mode: Qualcomm Quick Charge 3.0'},
                       {'value': 'APP2.4A', 'description': 'Charging mode: Apple, max 2.4 Amp'},
@@ -44,12 +45,14 @@ CHARGING_MODES = [{'value': 'UNKNOWN', 'description': 'Charging mode: Unknown, o
                       {'value': 'SAMSUNG', 'description': 'Charging mode: Samsung (Adaptive Fast Charging'},
                   ]
 
-
-class BLDevice(BaseModel):
-    timestamp: datetime
+class BLDeviceBase(BaseModel):
     name: Union[str, None] = Field(default=None, example='UM34C')
-    bd_address: Union[str, None] = Field(default=None, title='bd_address', min_length=17, max_length=17, example='12_34_56_78_9a_bc')
-    port: Union[int, None] = Field(default=None, example=1)
+    bd_address: Union[str, None] = Field(default=None, title='bd_address', min_length=17, max_length=17, example='aa:bb:cc:dd:ee:ff')
+
+
+class BLDevice(BLDeviceBase):
+    timestamp: Union[datetime, None] = Field(default=None, example=datetime.now())
+    channel: Union[int, None] = Field(default=None, example=1)
 
 
 class UM34CCommands(Enum):
@@ -78,13 +81,13 @@ class UM34CResponseBase(BaseModel):
 
 
 class UM34CResponseGroupDataRaw(BaseModel):
-    mAh: Union[str, None] = None
-    mWh: Union[str, None] = None
+    mah: Union[str, None] = None
+    mwh: Union[str, None] = None
 
 
 class UM34CResponseGroupData(BaseModel):
-    mAh: Union[int, None] = Field(default=None, example=23)
-    mWh: Union[int, None] = Field(default=None, example=116)
+    mah: Union[int, None] = Field(default=None, example=23)
+    mwh: Union[int, None] = Field(default=None, example=116)
 
 
 class UM34CResponseDatapointStr(UM34CResponseBase):
@@ -179,7 +182,7 @@ class UM34CResponseRaw(CommandResponse):
         schema_extra = {
             'example': {
               "name": "UM34C",
-              "port": 1,
+              "channel": 1,
               "command": "request_data",
               "command_code": "0xf0",
               "data": [
@@ -425,9 +428,16 @@ class UM34Examples(Enum):
                             'Configuration data': {'description': 'Get only configuration data','value': ['selected_group', 'thresh_amps', 'thresh_active', 'screen_timeout', 'screen_backlight', 'cur_screen']},
                             }
     bd_address: dict = {'default': {'description': 'default example value', 'value': None}, 'From configuration': {'description': 'Use bd address from configuration', 'value': BluetoothSettings().bd_address},}
+    device_names: dict = {'default': {'description': 'default example value', 'value': None},
+                          'Device name is UM24C': {'description': 'Use the name of the device', 'value': 'UM24C'},
+                          'Device name is UM25C': {'description': 'Use the name of the device', 'value': 'UM25C'},
+                          'Device name is UM34C': {'description': 'Use the name of the device', 'value': 'UM34C'},
+                          }
+
     max_attempts: dict = {'default': {'description': 'default example value', 'value': 10}, 'From configuration': {'description': 'Use max attempts from configuration', 'value': BluetoothSettings().max_attempts}, }
     attempt_delay: dict = {'default': {'description': 'default example value', 'value': 5000}, 'From configuration': {'description': 'Use attempt delay from configuration', 'value': BluetoothSettings().attempts_delay}, }
     clear_data_group: dict = {'default (Delete current group data)': {'description': 'default example value (delete current selected group)', 'value': None},
+                              'Delete group 0 data': {'description': 'Select group 0 and delete its data', 'value': 0},
                               'Delete group 1 data': {'description': 'Select group 1 and delete its data', 'value': 1},
                               'Delete group 2 data': {'description': 'Select group 2 and delete its data', 'value': 2},
                               'Delete group 3 data': {'description': 'Select group 3 and delete its data', 'value': 3},
@@ -439,6 +449,7 @@ class UM34Examples(Enum):
                               'Delete group 9 data': {'description': 'Select group 9 and delete its data', 'value': 9}
                               }
     select_data_group: dict = {'default': {'description': 'default example value', 'value': None},
+                               'Select group 0': {'description': 'Select group 0', 'value': 0},
                                'Select group 1': {'description': 'Select group 1', 'value': 1},
                                'Select group 2': {'description': 'Select group 2', 'value': 2},
                                'Select group 3': {'description': 'Select group 3', 'value': 3},
@@ -510,3 +521,13 @@ class UM34Examples(Enum):
                         'screen 4': {'description': 'Go to screen 4', 'value': 4},
                         'screen 5 (most right)': {'description': 'Go to screen 5 (most right)', 'value': 5},
                         }
+
+
+class BLErrorMessage400(BaseModel):
+    detail: str = "Invalid address: {bd_address}"
+
+class BLErrorMessage404(BaseModel):
+    detail: str ="No device found named {device_name}"
+
+class BLErrorMessage409(BaseModel):
+    detail: str ="Too many attempts"
