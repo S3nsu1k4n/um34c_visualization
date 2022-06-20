@@ -33,7 +33,7 @@ description = """
 app = FastAPI(
     title='UM34C with FastAPI',
     description=description,
-    version='2022.06.15',
+    version='2022.06.21',
     openapi_tags=[{'name': 'bluetooth', 'description': 'Commands connecting to UM34C'},
                   {'name': 'command', 'description': 'Commands controlling UM34C'}]
 )
