@@ -1,3 +1,4 @@
+from multiprocessing.dummy import Process
 from fastapi import APIRouter, Query, Path, Depends
 from fastapi.responses import FileResponse
 from pydantic import Field, Required
@@ -5,6 +6,8 @@ from typing import Union, List
 from enum import Enum
 import time
 from datetime import datetime
+import json
+import requests
 
 
 from .commands_dependencies import verify_key_allowed, verify_keys_allowed
@@ -17,7 +20,8 @@ from .commands_models import (UM34CResponseRaw,
                               UM34CCommands,
                               UM34CResponseDataRaw,
                               UM34Examples,
-                              BLErrorMessage400, BLErrorMessage404, BLErrorMessage409
+                              BLErrorMessage400, BLErrorMessage404, BLErrorMessage409,
+                              DBResponse
                               )
 from .bl_connection import get_bluetooth_device
 
@@ -437,3 +441,82 @@ async def reset_device(bl_device = Depends(get_bluetooth_device)):
     bl_device.send(command=code)
 
     return {**{'timestamp': datetime.now()}, **bl_device.get_info(), **{'command': None, 'command_code': None}}
+
+request_session = requests.Session()
+request_session.trust_env = False
+url = 'http://127.0.0.1:8081/data'
+
+
+class SendingProcess(Process):
+    def __init__(self):
+        Process.__init__(self)
+        self.run_loop = True
+        self.in_loop = False
+
+    def run(self):
+        self.in_loop = True
+        while self.run_loop:
+            gen = get_bluetooth_device()
+            try:
+                for bl_device in gen:
+                    data = get_response_for_db(bl_device)
+                    resp = request_session.post(url=url, json=data)
+                time.sleep(0.01)
+            except:
+                pass
+            finally:
+                pass
+        self.in_loop = False
+
+    def terminate(self):
+        self.run_loop = False
+        while self.in_loop: pass
+
+
+sending_process = SendingProcess()
+sending_process.setDaemon(True)
+
+
+def get_response_for_db(bl_device):
+    response = get_response_data(bl_device=bl_device)
+    return {'created_at': str(datetime.now()), 'bd_address': bl_device.get_info()['bd_address'], **{k: v['value'] for k, v in response['data'][0].items()}}
+
+
+@router.get('/send_response_to_db', response_model=DBResponse, summary='Sends device response to db', response_description='Successfully sent data from device to db')
+async def send_response_to_db(bl_device = Depends(get_bluetooth_device)):
+    """
+    Gets data from the bluetooth device and sends it to the database to store the data
+    - Response: id number of created data line in database
+    """
+    data = get_response_for_db(bl_device)
+    resp = request_session.post(url=url, json=data)
+    
+    try:
+        content = json.loads(resp.content)
+        content.update({'message': 'OK'})
+    except json.decoder.JSONDecodeError:
+        content = {'message': resp.content.decode('utf-8')}
+    return content
+
+
+@router.get('/send_response_to_db_loop', response_model=None, summary='Sends device response to db in loop', response_description='Successfully started process')
+async def send_response_to_db_loop():
+    """
+    Starts process of a loop to get data from the bluetooth device and send it to the database to store the data
+    """
+    global sending_process
+    sending_process.terminate()
+    sending_process = SendingProcess()
+    sending_process.setDaemon(True)
+    sending_process.start()
+    return {'message': 'Started sending to db process loop'}
+
+
+@router.get('/stop_sending_loop', response_model=None, summary='Sends device response to db', response_description='Successfully stopped process')
+async def stop_sending_loop():
+    """
+    Stops process with the loop which gets data from the bluetooth device and sends it to the database to store the data
+    """
+    sending_process.terminate()
+    
+    return {'message': 'Stopped sending to db process loop'}

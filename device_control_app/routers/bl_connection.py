@@ -171,9 +171,9 @@ class BluetoothDevice:
                                     headers={'X-Error': 'Timeout'}
                                     )
             except OSError as e:
-                print(e)
+                pass
             except IOError as error:
-                print(error)
+                pass
             finally:
                 attempts += 1
 

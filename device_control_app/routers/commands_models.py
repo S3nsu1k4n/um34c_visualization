@@ -5,7 +5,6 @@ from datetime import datetime
 from config import BluetoothSettings
 
 
-
 RESPONSE_FORMAT = [{'length': 2, 'type': 'model', 'description': 'Model ID'},
                  {'length': 2, 'type': 'measurement', 'description': 'Current measured voltage'},
                  {'length': 2, 'type': 'measurement', 'description': 'Current measured amperage'},
@@ -44,6 +43,7 @@ CHARGING_MODES = [{'value': 'Unknown', 'description': 'Charging mode: Unknown, o
                       {'value': 'DCP1.5A', 'description': 'Charging mode: Dedicated Charging Port, max 1.5 Amp (D+ to D- short'},
                       {'value': 'SAMSUNG', 'description': 'Charging mode: Samsung (Adaptive Fast Charging'},
                   ]
+
 
 class BLDeviceBase(BaseModel):
     name: Union[str, None] = Field(default=None, example='UM34C')
@@ -526,8 +526,20 @@ class UM34Examples(Enum):
 class BLErrorMessage400(BaseModel):
     detail: str = "Invalid address: {bd_address}"
 
+
 class BLErrorMessage404(BaseModel):
     detail: str ="No device found named {device_name}"
 
+
 class BLErrorMessage409(BaseModel):
     detail: str ="Too many attempts"
+
+
+class GroupData(BaseModel):
+    mah: int
+    mwh: int
+
+
+class DBResponse(BaseModel):
+  created_id: Union[int, None]
+  message: Union[str, None]
