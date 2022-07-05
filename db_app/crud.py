@@ -1,6 +1,9 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 
-from . import models, schemas
+import models, schemas
+
+from datetime import datetime, timedelta
 
 
 def create_measurement_and_configuration(db: Session, response: schemas.UM34CResponse):
@@ -11,6 +14,7 @@ def create_measurement_and_configuration(db: Session, response: schemas.UM34CRes
     create_device(db, schemas.DeviceCreate(**{key: data[key] for key in schemas.DeviceCreate.schema()['properties'].keys()}))
     create_measurement(db, schemas.MeasurementCreate(**{key: data[key] for key in schemas.MeasurementCreate.schema()['properties'].keys()}))
     create_configuration(db, schemas.ConfigurationCreate(**{key: data[key] for key in schemas.ConfigurationCreate.schema()['properties'].keys()}))
+    return {'created_id': db.query(func.max(models.Measurement.id)).first()[0]}
 
 
 def get_all_devices(db: Session):
@@ -21,8 +25,18 @@ def get_all_configurations(db: Session):
     return db.query(models.Configuration).all()
 
 
-def get_all_measurements(db: Session):
-    return db.query(models.Measurement).all()
+def get_measurements_by_limit(db: Session, limit: int):
+    offset = db.query(func.max(models.Measurement.id)).first()[0] - limit
+    offset = offset if offset >= 0 else 0
+    resp = db.query(models.Measurement).offset(offset).limit(limit).all()
+    return resp
+
+
+def get_measurements_by_hours(db: Session, hours: int):
+    time_delta = datetime.now() - timedelta(hours=hours)
+    time_delta = time_delta.replace(minute=0, second=0, microsecond=0)
+    resp = db.query(models.Measurement).filter(models.Measurement.created_at > time_delta).all()
+    return resp
 
 
 def create_device(db: Session, device: schemas.DeviceCreate):

@@ -114,3 +114,7 @@ class Configuration(ConfigurationBase):
 
     class Config:
         orm_mode = True
+        
+
+class CreateDataResponse(BaseModel):
+    created_id: int
