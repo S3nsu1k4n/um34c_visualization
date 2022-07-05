@@ -5,3 +5,8 @@ device_control_app/include
 device_control_app/lib
 device_control_app/share
 device_control_app/pyvenv.cfg
+db_app/bin
+db_app/include
+db_app/lib
+db_app/share
+db_app/pyvenv.cfg
